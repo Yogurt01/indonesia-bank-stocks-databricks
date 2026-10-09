@@ -1,0 +1,14 @@
+{
+  "catalog": "workspace",
+  "schemas": {"bronze": "bronze", "silver": "silver", "gold": "gold", "ops": "ops"},
+  "landing_volume": "landing",
+  "landing_path": "/Volumes/workspace/bronze/landing",
+  "tickers": [
+    {"ticker": "BBCA", "source_symbol": "BBCA.JK", "folder": "bbca", "bank_name": "PT Bank Central Asia Tbk", "short_name": "BCA"},
+    {"ticker": "BBNI", "source_symbol": "BBNI.JK", "folder": "bbni", "bank_name": "PT Bank Negara Indonesia (Persero) Tbk", "short_name": "BNI"},
+    {"ticker": "BMRI", "source_symbol": "BMRI.JK", "folder": "bmri", "bank_name": "PT Bank Mandiri (Persero) Tbk", "short_name": "Mandiri"},
+    {"ticker": "BBRI", "source_symbol": "BBRI.JK", "folder": "bbri", "bank_name": "PT Bank Rakyat Indonesia (Persero) Tbk", "short_name": "BRI"}
+  ],
+  "source_columns": ["Date", "open", "high", "low", "close", "adjclose", "volume", "ingested_at_utc"],
+  "kpi": {"vol_window": 60, "rel_volume_window": 60, "annualization_factor": 252}
+}

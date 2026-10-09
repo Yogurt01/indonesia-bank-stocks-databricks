@@ -1,23 +1,60 @@
 # Data Model
 
-> **Status:** the Gold model is owner-approved (DEC-08, 2026-10-09); implementation is pending. Bronze, Silver, quarantine and `ops`
-> are placeholders to be designed in D1-09. Everything here is design. Row counts are expectations derived from `docs/DATASET.md`, not
-> measured Databricks results.
+> **Status:** owner-approved design (Gold: DEC-08; Bronze, Silver, quarantine and `ops`: D1-09), 2026-10-09. Implementation is pending.
+> Everything here is design. Row counts are expectations derived from `docs/DATASET.md`, not measured Databricks results.
 >
 > Related: KPI formulas in [`docs/KPI_DEFINITIONS.md`](KPI_DEFINITIONS.md) (DEC-03); tests and DQ checks in
-> [`docs/TEST_STRATEGY.md`](TEST_STRATEGY.md) (DEC-10).
+> [`docs/TEST_STRATEGY.md`](TEST_STRATEGY.md) (DEC-10); configuration in `config/pipeline.json`.
+
+## 0. Landing (source files in Databricks)
+
+- Unity Catalog Volume **`workspace.bronze.landing`**, path `/Volumes/workspace/bronze/landing/<folder>/`, with `folder` = `bbca`, `bbni`,
+  `bmri`, `bbri` (the same layout as the local `data/raw/`).
+- Files per folder (DEC-05): `<TICKER>.JK.csv` and `run-summary.json`, **8 files in total**.
+- Files are overwritten on re-download (full refresh, DEC-06).
 
 ## 1. Bronze
 
-*To be designed in D1-09.*
+| Table | Grain | Columns | Notes |
+| ----- | ----- | ------- | ----- |
+| `bronze.daily_prices_raw` | One row per source CSV data row | `source_date`, `open`, `high`, `low`, `close`, `adjclose`, `volume`, `ingested_at_utc` (all **STRING**, original values preserved), `ticker` (derived from the file name), `source_file`, `bronze_loaded_at`, `pipeline_run_id` | Permissive typing, so no source value is lost; typing happens in Silver. |
+| `bronze.source_run_summary` | One row per ticker | `ticker`, `stock`, `source_run_id`, `daily_rows`, `daily_date_max`, `daily_duplicate_dates` (the daily `1d` section of `run-summary.json`), `raw_json` (string), `source_file`, `bronze_loaded_at`, `pipeline_run_id` | `ticker` is the project ticker (for example `BBCA`, from the landing folder). The JSON field `ticker` holds the source symbol (for example `BBCA.JK`), so the Bronze DQ check compares it with `source_symbol` in the config. |
 
 ## 2. Silver and Quarantine
 
-*To be designed in D1-09.*
+| Table | Grain (key) | Columns | Notes |
+| ----- | ----------- | ------- | ----- |
+| `silver.daily_prices` | `ticker`, `trade_date` | `ticker`, `trade_date` DATE, `open`/`high`/`low`/`close`/`adjclose` DOUBLE, `volume` BIGINT, `volume_status`, `source_ingested_at` TIMESTAMP, `source_file`, `source_run_id`, `pipeline_run_id`, `processed_at` | **DOUBLE, not DECIMAL:** source values are float32 stored as double, so DECIMAL adds no real precision; all KPIs are ratios; equality checks use a tolerance. `volume_status` per `docs/KPI_DEFINITIONS.md` G4. |
+| `silver.daily_prices_quarantine` | One row per rejected Bronze row | Bronze columns, `reject_reason`, `pipeline_run_id`, `quarantined_at` | Overwritten each run; the counts are kept historically in `ops`. |
 
 ## 3. ops (run audit and DQ results)
 
-*To be designed in D1-09.* `ops.dq_results` is already specified by DEC-10 (see `docs/TEST_STRATEGY.md` §2).
+| Table | Key | Columns | Notes |
+| ----- | --- | ------- | ----- |
+| `ops.run_audit` | `pipeline_run_id`, `task_name` | `job_run_id`, `started_at`, `ended_at`, `status`, `rows_in`, `rows_out`, `rows_rejected`, `error_message` | Append-only |
+| `ops.dq_results` | `pipeline_run_id`, `check_name` | `layer`, `severity`, `passed`, `failing_count`, `expected`, `details`, `checked_at` | Append-only |
+
+**`pipeline_run_id`:** taken from the Job parameter `{{job.run_id}}` (to verify on Free Edition); a UUID when a notebook runs interactively.
+
+## Source-to-Target Mapping
+
+| Source (daily CSV / JSON) | Bronze | Silver | Gold |
+| ------------------------- | ------ | ------ | ---- |
+| CSV `Date` | `source_date` STRING | `trade_date` DATE | `trade_date`, `year`, `month`, `month_start` |
+| CSV `open`, `high`, `low`, `close`, `adjclose` | STRING | DOUBLE | `close`, `adjclose` and the KPIs (§4) |
+| CSV `volume` | STRING | BIGINT | `volume`, `rel_volume_60d`, `avg_daily_volume` |
+| CSV `ingested_at_utc` | STRING | `source_ingested_at` TIMESTAMP | `source_ingested_at` = max per snapshot |
+| File name (`<TICKER>.JK.csv`) | `ticker`, `source_file` | `ticker`, `source_file` | `ticker` |
+| `run-summary.json` `run_id` | `bronze.source_run_summary.source_run_id` | `source_run_id` | `source_run_id` |
+| (derived) | — | `volume_status` | `volume_status` |
+| (pipeline) | `pipeline_run_id`, `bronze_loaded_at` | `pipeline_run_id`, `processed_at` | `pipeline_run_id`, `built_at` |
+
+The Gold columns are defined in §4.
+
+## Job
+
+Four sequential tasks: **`setup` → `bronze_ingest` → `silver_transform` → `gold_build`**. Each task runs its layer's DQ checks on its DataFrames
+before writing (DEC-10). The Job parameters `catalog` and `landing_path` override `config/pipeline.json`.
 
 ## 4. Gold (DEC-08, owner-approved 2026-10-09)
 
