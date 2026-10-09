@@ -80,6 +80,7 @@ In the current snapshot that means October 2026 and the year 2026. It is derived
   | BMRI | +8.5% | ~+75% |
 
   The ranking changes with the basis. The real values come from K2 after implementation.
+  The "minimum ratio on the first date" assumption was confirmed by Bronze query Q3 ([`docs/evidence/d2-01-bronze.md`](evidence/d2-01-bronze.md)): the 2019-01-01 `adjclose/close` ratios equal the §5 minimums. The full-period figures remain estimates until Gold computes K2 from the base date.
 - **Window 60** is smoother than 20 and still shows March 2020.
 - **`sqrt(252)`** is a convention. The observed ~236–247 normal sessions per year make annualized values ~2–3% higher. The same factor is used for every ticker, so rankings are unaffected. Label it on the dashboard.
 - **Drawdown uses close-based `adjclose`, not the intraday low,** because `low` is not dividend-adjusted.

@@ -25,7 +25,11 @@
 | Table | Grain (key) | Columns | Notes |
 | ----- | ----------- | ------- | ----- |
 | `silver.daily_prices` | `ticker`, `trade_date` | `ticker`, `trade_date` DATE, `open`/`high`/`low`/`close`/`adjclose` DOUBLE, `volume` BIGINT, `volume_status`, `source_ingested_at` TIMESTAMP, `source_file`, `source_run_id`, `pipeline_run_id`, `processed_at` | **DOUBLE, not DECIMAL:** source values are float32 stored as double, so DECIMAL adds no real precision; all KPIs are ratios; equality checks use a tolerance. `volume_status` per `docs/KPI_DEFINITIONS.md` G4. |
-| `silver.daily_prices_quarantine` | One row per rejected Bronze row | Bronze columns, `reject_reason`, `pipeline_run_id`, `quarantined_at` | Overwritten each run; the counts are kept historically in `ops`. |
+| `silver.daily_prices_quarantine` | One row per rejected Bronze row | Bronze columns as stored (with Bronze's `pipeline_run_id` renamed `bronze_pipeline_run_id`), `reject_reason`, `pipeline_run_id` (the Silver run), `quarantined_at` | Overwritten each run (written even when empty); the counts are kept historically in `ops`. `reject_reason` = `;`-joined codes: `invalid_date`, `invalid_price` (any of the 5 prices NULL after `try_cast`), `non_positive_price`, `invalid_volume` (NULL or < 0), `ohlc_inconsistent`, `rescued_data_present`. |
+
+**Typing:** `try_cast` (not `cast`/`to_date`), because serverless runs with ANSI mode, where a plain cast raises on bad input; a NULL result becomes a
+reject reason. **Duplicate keys are not quarantined:** a duplicated (`ticker`, `trade_date`) means the source snapshot is broken, so the CRITICAL
+check `silver_no_duplicate_keys` stops the run before anything is written.
 
 ## 3. ops (run audit and DQ results)
 

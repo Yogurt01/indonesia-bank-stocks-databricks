@@ -37,17 +37,20 @@ Results for every run go to **`ops.dq_results`** (`pipeline_run_id`, `check_name
 
 Implemented Bronze check names (`notebooks/01_bronze_ingest.py`): `bronze_all_tickers_present`, `bronze_header_matches`,
 `bronze_rows_match_run_summary`, `bronze_source_symbol_matches` (CRITICAL); `bronze_single_source_run_id`, `bronze_rescued_data_empty` (WARN).
-| Silver | CRITICAL | No duplicate (`ticker`, `trade_date`) | 0 |
-| Silver | CRITICAL | No NULL in key and price columns | 0 |
-| Silver | CRITICAL | Prices > 0 | 0 violations |
-| Silver | CRITICAL | `low <= min(open, close) and max(open, close) <= high` | 0 violations |
-| Silver | CRITICAL | `volume >= 0` | 0 violations |
-| Silver | CRITICAL | Silver rows + quarantine rows = Bronze rows | Equal |
-| Silver | WARN | Quarantine rows > 0 | Expected 0 |
-| Silver | WARN | The four tickers share the same date set | Expected identical |
-| Silver | WARN | Zero-volume rows whose prices are not flat | Expected 0 |
-| Silver | WARN | `zero_partial` count | Expected 4 |
-| Silver | INFO | `zero_all_tickers` count | Expected 52 |
+| Silver | CRITICAL | `silver_no_duplicate_keys`: no duplicate (`ticker`, `trade_date`) among valid rows (duplicates stop the run; they are not quarantined) | 0 |
+| Silver | CRITICAL | `silver_reconciles_with_bronze`: Silver rows + quarantine rows = Bronze rows | Equal |
+| Silver | CRITICAL | `silver_no_nulls`: no NULL in `ticker`, `trade_date`, the 5 prices, `volume`, `volume_status` | 0 |
+| Silver | CRITICAL | `silver_positive_prices`: prices > 0 (logic guard; violating rows should already be quarantined) | 0 violations |
+| Silver | CRITICAL | `silver_ohlc_valid`: `low <= min(open, close) and max(open, close) <= high` (logic guard) | 0 violations |
+| Silver | CRITICAL | `silver_volume_non_negative`: `volume >= 0` (logic guard) | 0 violations |
+| Silver | WARN | `silver_quarantine_empty`: quarantine rows (details: counts per reason) | Expected 0 |
+| Silver | WARN | `silver_same_date_set`: every ticker has the same set of trade dates | Expected identical |
+| Silver | WARN | `silver_zero_volume_rows_flat`: zero-volume rows not flat, or close != previous close | Expected 0 |
+| Silver | WARN | `silver_flat_rows_adjclose_carried`: zero-volume rows whose adjclose != previous adjclose | Expected 0 |
+| Silver | WARN | `silver_zero_partial_count`: `zero_partial` rows (expected to report the known vendor gaps; WARN never blocks) | Expected 4 |
+| Silver | WARN | `silver_source_ingested_at_parsed`: rows where `ingested_at_utc` did not parse as TIMESTAMP | Expected 0 |
+| Silver | INFO | `silver_zero_all_tickers_count`: `zero_all_tickers` rows | Expected 52 |
+| Silver | INFO | `silver_base_date`: computed base date (G3) | Expected 2019-01-02 (to verify) |
 | Gold | CRITICAL | Key uniqueness per table | 0 duplicates |
 | Gold | CRITICAL | `normalized_index = 100` at the base date | All 4 tickers |
 | Gold | CRITICAL | `drawdown <= 0` | 0 violations |
@@ -70,6 +73,10 @@ Implemented Bronze check names (`notebooks/01_bronze_ingest.py`): `bronze_all_ti
   3. Expect identical values and 0 duplicate keys.
 - **Induced failure test:**
   1. A notebook creates a test landing folder containing a copy of the CSVs plus one duplicated key row.
+     > **Note (agent, for owner review):** as implemented, an *added* duplicate row would make the CSV row count differ from
+     > `run-summary.json`, so the **Bronze** CRITICAL check `bronze_rows_match_run_summary` would fail first and Silver would never run.
+     > To exercise the Silver duplicate-key path, the test copy should **replace** one data row with a copy of another row of the same
+     > ticker (the count stays at 1,887). Alternatively, accept a Bronze-level failure as the induced failure. Decision pending.
   2. Run the Job with the job parameter `landing_path` pointing to that folder.
   3. Expect the Silver duplicate-key check to fail, the Gold tasks to be skipped, and the Gold `pipeline_run_id` to stay unchanged.
   4. Rerun with the correct path to recover.
