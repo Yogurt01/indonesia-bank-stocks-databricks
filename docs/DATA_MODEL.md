@@ -79,6 +79,22 @@ One dimension plus four fact tables, each at exactly one grain.
 - Gold rows start at the base date (`docs/KPI_DEFINITIONS.md` G3).
 - **No partitioning or clustering:** about 7,500 daily rows in total (expected: 4 tickers × ~1,886 rows from the base date). *Recorded for REQ-22.*
 - **No `dim_date`:** `year` and `month` are columns on the facts.
+- **Column order:** as in the table above (key first, lineage last); implemented in `src/bank_pipeline/gold.py`.
+
+### Implementation rules (`src/bank_pipeline/gold.py`, `notebooks/03_gold_build.py`)
+- **K3, K4, K10 on normal rows only:** computed on the `normal` rows and joined back, so flagged rows get NULL. `daily_return` is NULL on the base
+  date (there is no earlier normal row). `vol_60d_ann` is NULL until the window of the last 60 normal rows holds 60 non-NULL returns (expected: 60 leading
+  NULL normal rows per ticker). `rel_volume_60d` is NULL until 60 previous normal rows exist (day t excluded).
+- **`running_peak` and `drawdown`** use all rows (flat rows carry the previous `adjclose`, verified in `docs/evidence/d2-03-silver.md`).
+- **K8/K9:** period return = `adjclose` at the last row of the period / `adjclose` at the last row of the previous period − 1; the first period
+  starts at the base-date `adjclose`.
+- **`is_partial`** (data-derived, no hard-coded dates): TRUE for each ticker's first period (it starts at the base date), and TRUE for the period
+  containing the dataset's last `trade_date` when that date is earlier than the period's last weekday (Mon–Fri). *Conservative:* an exchange
+  holiday on the last weekday would mark a complete final period as partial.
+- **K7 peak and trough:** `trough_date` = date of `max_drawdown` (earliest if tied); `peak_date` = latest `trade_date` ≤ `trough_date` where
+  `drawdown = 0`.
+- **Lineage:** `source_run_id` from Silver (exactly one distinct value, CRITICAL check); `source_ingested_at` = `max(source_ingested_at)` of Silver.
+- **Atomicity:** each table overwrite is atomic (Delta), but not across the five tables; a failure between writes is recovered by rerunning the task.
 
 ### Relationships
 - Each fact joins `dim_ticker` on `ticker`.

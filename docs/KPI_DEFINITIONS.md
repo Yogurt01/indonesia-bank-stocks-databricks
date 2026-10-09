@@ -95,14 +95,14 @@ In the current snapshot that means October 2026 and the year 2026. It is derived
 - Volume may not be adjusted for corporate actions (see risk R-16 in `PROJECT_PLAN.md`).
 - KPIs over an arbitrary dashboard date window (rebased index, window volatility, window drawdown) are **not precomputed in v1**. This is a design point for DEC-08.
 
-## 7. To Verify on Databricks (open)
+## 7. To Verify on Databricks
 
 | Check | Expected (from `DATASET.md` facts, not yet verified on Databricks) |
 | ----- | ------------------------------------------------------------------ |
-| Base date value (G3) | 2019-01-02 |
-| `volume_status` counts | 52 `zero_all_tickers` (13 dates × 4); 4 `zero_partial` (2020-03-13: BBCA, BBNI; 2020-03-16: BBCA, BMRI) |
-| Every zero-volume row is flat (open = high = low = close = previous close) | 0 exceptions |
-| `adjclose` on flat rows equals the previous row's `adjclose` | To be measured (not profiled yet) |
+| Base date value (G3) | 2019-01-02. **Verified 2026-10-10** ([`docs/evidence/d2-03-silver.md`](evidence/d2-03-silver.md)) |
+| `volume_status` counts | 52 `zero_all_tickers` (13 dates × 4); 4 `zero_partial` (2020-03-13: BBCA, BBNI; 2020-03-16: BBCA, BMRI). **Verified 2026-10-10** ([`docs/evidence/d2-03-silver.md`](evidence/d2-03-silver.md)) |
+| Every zero-volume row is flat (open = high = low = close = previous close) | 0 exceptions. **Verified 2026-10-10** ([`docs/evidence/d2-03-silver.md`](evidence/d2-03-silver.md)) |
+| `adjclose` on flat rows equals the previous row's `adjclose` | 0 exceptions. **Verified 2026-10-10** ([`docs/evidence/d2-03-silver.md`](evidence/d2-03-silver.md)) |
 | Normal sessions per year | ~236–247 |
 | K4 leading NULLs per ticker | Exactly 60 (K3 is NULL on the base date because there is no earlier normal row, so 60 K3 observations first exist on the 61st normal row) |
 | K6 | Never positive; 0 on new peaks |

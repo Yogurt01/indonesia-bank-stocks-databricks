@@ -51,13 +51,16 @@ Implemented Bronze check names (`notebooks/01_bronze_ingest.py`): `bronze_all_ti
 | Silver | WARN | `silver_source_ingested_at_parsed`: rows where `ingested_at_utc` did not parse as TIMESTAMP | Expected 0 |
 | Silver | INFO | `silver_zero_all_tickers_count`: `zero_all_tickers` rows | Expected 52 |
 | Silver | INFO | `silver_base_date`: computed base date (G3) | Expected 2019-01-02 (to verify) |
-| Gold | CRITICAL | Key uniqueness per table | 0 duplicates |
-| Gold | CRITICAL | `normalized_index = 100` at the base date | All 4 tickers |
-| Gold | CRITICAL | `drawdown <= 0` | 0 violations |
-| Gold | CRITICAL | `ticker_summary` has exactly 4 rows | 4 |
-| Gold | CRITICAL | `total_return` equals the last `normalized_index / 100 - 1` | Equal (within float tolerance) |
-| Gold | WARN | Product of `(1 + monthly_return)` within a year equals `1 + yearly_return` | Within tolerance |
-| Gold | WARN | Exactly 60 leading NULLs of `vol_60d_ann` per ticker | 60 |
+| Gold | CRITICAL | `gold_unique_keys`: key uniqueness in each of the 5 tables (details per table) | 0 duplicates |
+| Gold | CRITICAL | `gold_daily_rows_match_silver`: `fact_daily_metrics` rows = Silver rows with `trade_date >= base_date` | Equal (expected 7,544) |
+| Gold | CRITICAL | `gold_index_100_at_base`: `normalized_index = 100` at the base date (abs diff ≤ 1e-9) | All 4 tickers |
+| Gold | CRITICAL | `gold_drawdown_non_positive`: `drawdown <= 1e-12` | 0 violations |
+| Gold | CRITICAL | `gold_summary_four_rows`: `ticker_summary` holds exactly the configured tickers | 4 |
+| Gold | CRITICAL | `gold_total_return_consistent`: `total_return` = last `normalized_index / 100 - 1` (abs diff ≤ 1e-9) | Equal |
+| Gold | CRITICAL | `gold_single_source_run_id`: exactly one distinct `source_run_id` in Silver | 1 |
+| Gold | WARN | `gold_monthly_compounds_to_yearly`: `exp(sum(log(1 + monthly_return)))` per ticker-year = `1 + yearly_return` (abs diff ≤ 1e-9) | Within tolerance |
+| Gold | WARN | `gold_vol_leading_nulls`: normal rows before the first non-NULL `vol_60d_ann` per ticker | 60 |
+| Gold | INFO | `gold_partial_periods`: `is_partial` months and years per ticker | 2 months and 2 years per ticker |
 
 ### Blocking behavior
 - A failed CRITICAL check raises an error in its task, and the Job skips the downstream tasks.
@@ -71,16 +74,20 @@ Implemented Bronze check names (`notebooks/01_bronze_ingest.py`): `bronze_all_ti
   1. Run the Job twice on the same input.
   2. Compare per-table row counts and a content checksum (the sum of row hashes, excluding the run-metadata columns).
   3. Expect identical values and 0 duplicate keys.
-- **Induced failure test:**
-  1. A notebook creates a test landing folder containing a copy of the CSVs plus one duplicated key row.
-     > **Note (agent, for owner review):** as implemented, an *added* duplicate row would make the CSV row count differ from
-     > `run-summary.json`, so the **Bronze** CRITICAL check `bronze_rows_match_run_summary` would fail first and Silver would never run.
-     > To exercise the Silver duplicate-key path, the test copy should **replace** one data row with a copy of another row of the same
-     > ticker (the count stays at 1,887). Alternatively, accept a Bronze-level failure as the induced failure. Decision pending.
+- **Induced failure test** (owner decision 2026-10-10, option A):
+  1. A notebook creates a test landing folder with a copy of the 8 landed files, in which **one data row of one ticker's CSV is replaced** by a copy of
+     another row of the same ticker. The row count stays at 1,887, so the Bronze checks pass (an *added* row would trip
+     `bronze_rows_match_run_summary` first).
   2. Run the Job with the job parameter `landing_path` pointing to that folder.
-  3. Expect the Silver duplicate-key check to fail, the Gold tasks to be skipped, and the Gold `pipeline_run_id` to stay unchanged.
-  4. Rerun with the correct path to recover.
+  3. Expected:
+     - `bronze_ingest` succeeds and **overwrites Bronze with the fixture data**;
+     - `silver_transform` fails on `silver_no_duplicate_keys` and writes nothing;
+     - `gold_build` is skipped;
+     - Silver and Gold keep the previous run's data (their `pipeline_run_id` is unchanged).
+  4. Recovery: rerun the Job with the real `landing_path`, which restores Bronze from the real files and rebuilds Silver and Gold.
   5. Record both run IDs.
+  6. **Runbook note:** between the failed run and the recovery run, Bronze holds the fixture data while Silver and Gold still hold the previous good
+     data. The window ends when the recovery run's `bronze_ingest` finishes.
 
 ## 4. Business-Metric Correctness (REQ-16, MUST)
 
