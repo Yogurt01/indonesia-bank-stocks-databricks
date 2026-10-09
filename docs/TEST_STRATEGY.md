@@ -87,17 +87,20 @@ Implemented Bronze check names (`notebooks/01_bronze_ingest.py`): `bronze_all_ti
   6. Expect `RERUN CHECK PASS`. The notebook also shows the last two `gold_build` `pipeline_run_id`s, which link the comparison to the two Job runs.
      Logic: `src/bank_pipeline/rerun.py`.
 - **Induced failure test** (owner decision 2026-10-10, option A):
-  1. A notebook creates a test landing folder with a copy of the 8 landed files, in which **one data row of one ticker's CSV is replaced** by a copy of
-     another row of the same ticker. The row count stays at 1,887, so the Bronze checks pass (an *added* row would trip
+  1. `notebooks/90_make_failure_fixture` (helpers in `src/bank_pipeline/fixtures.py`) creates the test landing folder
+     `/Volumes/<catalog>/bronze/test_fixtures/failure_dup_key/` with a copy of the 8 landed files, in which **one data row of one ticker's CSV is replaced**
+     by an exact copy of the previous row (defaults: `bbca`, data row 100). The real landing Volume is never modified; the notebook rebuilds the fixture on every run. The row count stays at 1,887, so the Bronze checks pass (an *added* row would trip
      `bronze_rows_match_run_summary` first).
-  2. Run the Job with the job parameter `landing_path` pointing to that folder.
+  2. Run the Job with the job parameter `landing_path` pointing to that folder (Jobs UI: **Run now** dropdown → **Run now with different parameters**).
   3. Expected:
      - `bronze_ingest` succeeds and **overwrites Bronze with the fixture data**;
      - `silver_transform` fails on `silver_no_duplicate_keys` and writes nothing;
      - `gold_build` is skipped;
      - Silver and Gold keep the previous run's data (their `pipeline_run_id` is unchanged).
-  4. Recovery: rerun the Job with the real `landing_path`, which restores Bronze from the real files and rebuilds Silver and Gold.
-  5. Record both run IDs.
+  4. Recovery: start a **new** run with the real `landing_path` (not Repair run, which would reuse the failing parameters). This restores Bronze
+     from the real files and rebuilds Silver and Gold.
+  5. Record both run IDs and verify with `sql/validation/05_failure_test.sql` (Section 1 after the failing run, Section 2 after the recovery).
+     Step-by-step procedure: `docs/RUNBOOK.md`.
   6. **Runbook note:** between the failed run and the recovery run, Bronze holds the fixture data while Silver and Gold still hold the previous good
      data. The window ends when the recovery run's `bronze_ingest` finishes.
 

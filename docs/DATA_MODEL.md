@@ -12,6 +12,8 @@
   `bmri`, `bbri` (the same layout as the local `data/raw/`).
 - Files per folder (DEC-05): `<TICKER>.JK.csv` and `run-summary.json`, **8 files in total**.
 - Files are overwritten on re-download (full refresh, DEC-06).
+- **Test fixtures (not pipeline input):** the separate Volume `workspace.bronze.test_fixtures` holds the induced-failure fixture
+  (`failure_dup_key/`, built by `notebooks/90_make_failure_fixture`); it is used only through a `landing_path` override (`docs/RUNBOOK.md`).
 
 ## 1. Bronze
 
