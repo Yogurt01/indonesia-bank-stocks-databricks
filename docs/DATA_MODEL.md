@@ -17,8 +17,8 @@
 
 | Table | Grain | Columns | Notes |
 | ----- | ----- | ------- | ----- |
-| `bronze.daily_prices_raw` | One row per source CSV data row | `source_date`, `open`, `high`, `low`, `close`, `adjclose`, `volume`, `ingested_at_utc` (all **STRING**, original values preserved), `ticker` (derived from the file name), `source_file`, `bronze_loaded_at`, `pipeline_run_id` | Permissive typing, so no source value is lost; typing happens in Silver. |
-| `bronze.source_run_summary` | One row per ticker | `ticker`, `stock`, `source_run_id`, `daily_rows`, `daily_date_max`, `daily_duplicate_dates` (the daily `1d` section of `run-summary.json`), `raw_json` (string), `source_file`, `bronze_loaded_at`, `pipeline_run_id` | `ticker` is the project ticker (for example `BBCA`, from the landing folder). The JSON field `ticker` holds the source symbol (for example `BBCA.JK`), so the Bronze DQ check compares it with `source_symbol` in the config. |
+| `bronze.daily_prices_raw` | One row per source CSV data row | `source_date`, `open`, `high`, `low`, `close`, `adjclose`, `volume`, `ingested_at_utc` (all **STRING**, original values preserved), `ticker` (derived from the landing folder), `source_file`, `bronze_loaded_at`, `pipeline_run_id`, `_rescued_data` | Permissive typing, so no source value is lost; typing happens in Silver. `_rescued_data` (Databricks CSV option `rescuedDataColumn`) captures values that do not fit the 8-column schema; expected empty (Bronze WARN check). |
+| `bronze.source_run_summary` | One row per ticker | `ticker`, `source_symbol`, `stock`, `source_run_id`, `daily_rows`, `daily_date_max` (STRING, as in the source), `daily_duplicate_dates`, `raw_json` (string), `source_file`, `bronze_loaded_at`, `pipeline_run_id` | `ticker` is the project ticker from the config (landing folder → ticker, for example `bbca` → `BBCA`). Mapping from `run-summary.json`: JSON `ticker` → `source_symbol` (for example `BBCA.JK`; the Bronze DQ check compares it with the config `source_symbol`); `stock` → `stock`; `run_id` → `source_run_id`; ``intervals.`1d`.rows`` → `daily_rows`; ``intervals.`1d`.date_max`` → `daily_date_max` (format `YYYY-MM-DD HH:MM:SS`); ``intervals.`1d`.duplicate_dates`` → `daily_duplicate_dates`. Schema confirmed by the D1-11 smoke test (`docs/evidence/d1-11-landing-smoke-test.md`). |
 
 ## 2. Silver and Quarantine
 
@@ -44,8 +44,9 @@
 | CSV `open`, `high`, `low`, `close`, `adjclose` | STRING | DOUBLE | `close`, `adjclose` and the KPIs (§4) |
 | CSV `volume` | STRING | BIGINT | `volume`, `rel_volume_60d`, `avg_daily_volume` |
 | CSV `ingested_at_utc` | STRING | `source_ingested_at` TIMESTAMP | `source_ingested_at` = max per snapshot |
-| File name (`<TICKER>.JK.csv`) | `ticker`, `source_file` | `ticker`, `source_file` | `ticker` |
+| Landing folder (`bbca`, …) → config ticker; file path (`_metadata.file_path`) | `ticker`, `source_file` | `ticker`, `source_file` | `ticker` |
 | `run-summary.json` `run_id` | `bronze.source_run_summary.source_run_id` | `source_run_id` | `source_run_id` |
+| `run-summary.json` `ticker`, ``intervals.`1d`.*`` | `bronze.source_run_summary.source_symbol`, `daily_rows`, `daily_date_max`, `daily_duplicate_dates` | (used by Bronze DQ checks only) | — |
 | (derived) | — | `volume_status` | `volume_status` |
 | (pipeline) | `pipeline_run_id`, `bronze_loaded_at` | `pipeline_run_id`, `processed_at` | `pipeline_run_id`, `built_at` |
 

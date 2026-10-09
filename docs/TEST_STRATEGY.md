@@ -22,7 +22,7 @@
 
 ## 2. Data Quality (REQ-08, MUST)
 
-Results for every run go to **`ops.dq_results`** (`check_name`, `run_id`, `layer`, `severity`, `passed`, `failing_count`, `checked_at`).
+Results for every run go to **`ops.dq_results`** (`pipeline_run_id`, `check_name`, `layer`, `severity`, `passed`, `failing_count`, `expected`, `details`, `checked_at`), as defined in `docs/DATA_MODEL.md` §3.
 
 ### Draft catalog
 
@@ -30,7 +30,13 @@ Results for every run go to **`ops.dq_results`** (`check_name`, `run_id`, `layer
 | ----- | -------- | ----- | -------- |
 | Bronze | CRITICAL | All 4 tickers present | 4 |
 | Bronze | CRITICAL | Per-ticker row count equals the daily row count in `run-summary.json` (an independent source) | Equal |
-| Bronze | CRITICAL | Ticker derived from the file name equals the ticker in `run-summary.json` | Equal |
+| Bronze | CRITICAL | The `run-summary.json` `ticker` field (the source symbol, for example `BBCA.JK`) equals the config `source_symbol` for that ticker | Equal |
+| Bronze | CRITICAL | Each CSV header line equals `source_columns` (exact names and order) | 0 mismatches |
+| Bronze | WARN | Exactly one distinct source `run_id` across the four tickers | 1 |
+| Bronze | WARN | Rows with a non-null `_rescued_data` | Expected 0 |
+
+Implemented Bronze check names (`notebooks/01_bronze_ingest.py`): `bronze_all_tickers_present`, `bronze_header_matches`,
+`bronze_rows_match_run_summary`, `bronze_source_symbol_matches` (CRITICAL); `bronze_single_source_run_id`, `bronze_rescued_data_empty` (WARN).
 | Silver | CRITICAL | No duplicate (`ticker`, `trade_date`) | 0 |
 | Silver | CRITICAL | No NULL in key and price columns | 0 |
 | Silver | CRITICAL | Prices > 0 | 0 violations |
