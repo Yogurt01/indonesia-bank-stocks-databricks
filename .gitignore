@@ -1,0 +1,49 @@
+# ===== Data: never published (license unclear, see docs/DATASET.md §10) =====
+data/
+*.csv
+*.parquet
+*.zip
+# Exception: small query outputs used as evidence
+!docs/evidence/**/*.csv
+
+# ===== Secrets and credentials =====
+.env
+.env.*
+!.env.example
+kaggle.json
+access_token
+.kaggle/
+.databrickscfg
+*.pem
+*.key
+secrets/
+
+# ===== Databricks local state =====
+.databricks/
+
+# ===== Python =====
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+*.egg-info/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.ipynb_checkpoints/
+
+# ===== Local planning and AI-assistant files (kept local, not published) =====
+CLAUDE.md
+PROJECT_PLAN.md
+.claude/
+
+# ===== Third-party reference docs (not part of this project) =====
+kaggle-cli/
+
+# ===== Editor, OS, scratch =====
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db
+tmp/
+*.log
