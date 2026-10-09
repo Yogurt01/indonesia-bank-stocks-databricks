@@ -61,6 +61,28 @@ The Gold columns are defined in §4.
 Four sequential tasks: **`setup` → `bronze_ingest` → `silver_transform` → `gold_build`**. Each task runs its layer's DQ checks on its DataFrames
 before writing (DEC-10). The Job parameters `catalog` and `landing_path` override `config/pipeline.json`.
 
+- **Definition:** [`jobs/indonesia_bank_stocks_pipeline.job.yml`](../jobs/indonesia_bank_stocks_pipeline.job.yml), exported from the Jobs UI and
+  sanitized (replace `<your-email>` and `<your-user>` before use).
+
+| Task | Notebook | Depends on |
+| ---- | -------- | ---------- |
+| `setup` | `notebooks/00_setup` | — |
+| `bronze_ingest` | `notebooks/01_bronze_ingest` | `setup` |
+| `silver_transform` | `notebooks/02_silver_transform` | `bronze_ingest` |
+| `gold_build` | `notebooks/03_gold_build` | `silver_transform` |
+
+| Job parameter | Default | Purpose |
+| ------------- | ------- | ------- |
+| `catalog` | `workspace` | Overrides the config catalog |
+| `landing_path` | `/Volumes/workspace/bronze/landing` | Overrides the config landing path (the induced-failure test points it at a fixture folder) |
+| `pipeline_run_id` | `{{job.run_id}}` | One ID shared by all tasks, the audit rows, the DQ results and the lineage columns |
+| `job_run_id` | `{{job.run_id}}` | Stored in `ops.run_audit` |
+
+- **Compute:** serverless, `PERFORMANCE_OPTIMIZED`; the queue is enabled; email on failure.
+- **Retries disabled** (`disable_auto_optimization: true`, no `max_retries`): a failed CRITICAL check fails again on retry, so automatic
+  retries only add cost. Transient failures are handled with Repair run.
+- Evidence of a successful run: `docs/evidence/d2-06-job.md`.
+
 ## 4. Gold (DEC-08, owner-approved 2026-10-09)
 
 One dimension plus four fact tables, each at exactly one grain.

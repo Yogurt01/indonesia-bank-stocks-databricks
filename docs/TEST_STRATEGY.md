@@ -70,10 +70,22 @@ Implemented Bronze check names (`notebooks/01_bronze_ingest.py`): `bronze_all_ti
 ## 3. Pipeline Execution (REQ-09, REQ-12, MUST)
 
 - **End-to-end run:** run the Job end to end and record its run ID.
-- **Rerun test (idempotency):**
+- **Rerun test (idempotency, D2-07):**
   1. Run the Job twice on the same input.
-  2. Compare per-table row counts and a content checksum (the sum of row hashes, excluding the run-metadata columns).
-  3. Expect identical values and 0 duplicate keys.
+  2. Run `notebooks/91_rerun_check` (read-only). For each of the 9 Bronze, Silver and Gold tables it uses **Delta time travel** to compare
+     the latest data-writing version with the previous one, and reports which versions were compared. Maintenance versions (OPTIMIZE, VACUUM, …)
+     are skipped; a table without a previous version is SKIPPED, which makes the overall result FAIL.
+  3. Run-specific columns are excluded (`pipeline_run_id`, `bronze_pipeline_run_id`, `bronze_loaded_at`, `processed_at`, `quarantined_at`, `built_at`).
+  4. Per table:
+     - row counts must be equal;
+     - keys must be unique in the latest version;
+     - a full outer join on the key must find 0 rows missing on either side;
+     - non-DOUBLE columns must match exactly (null-safe `<=>`);
+     - DOUBLE columns must agree within **1e-9** (NULL equals NULL), because the evaluation order of floating-point aggregations
+       (stddev, avg) can vary between runs.
+  5. The quarantine table has no key and is compared by row count only.
+  6. Expect `RERUN CHECK PASS`. The notebook also shows the last two `gold_build` `pipeline_run_id`s, which link the comparison to the two Job runs.
+     Logic: `src/bank_pipeline/rerun.py`.
 - **Induced failure test** (owner decision 2026-10-10, option A):
   1. A notebook creates a test landing folder with a copy of the 8 landed files, in which **one data row of one ticker's CSV is replaced** by a copy of
      another row of the same ticker. The row count stays at 1,887, so the Bronze checks pass (an *added* row would trip

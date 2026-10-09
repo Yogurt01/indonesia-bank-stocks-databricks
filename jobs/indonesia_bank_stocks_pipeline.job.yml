@@ -1,0 +1,55 @@
+# Exported from the Databricks Jobs UI ("View as code"), then sanitized.
+# Replace the placeholders <your-email> and <your-user> before use.
+# Recreate the Job via the Jobs UI (or paste where the UI accepts YAML). It is not deployed with Asset Bundles in this project (REQ-28 is COULD).
+# Retries are disabled (disable_auto_optimization, no max_retries): failures are deterministic DQ/CRITICAL stops; transient errors use Repair run.
+# Evidence of a successful run: docs/evidence/d2-06-job.md.
+resources:
+  jobs:
+    indonesia_bank_stocks_pipeline:
+      name: indonesia_bank_stocks_pipeline
+      email_notifications:
+        on_failure:
+          - <your-email>
+      tasks:
+        - task_key: setup
+          notebook_task:
+            notebook_path: /Workspace/Users/<your-user>/indonesia-bank-stocks-databricks/notebooks/00_setup
+            source: WORKSPACE
+          min_retry_interval_millis: 900000
+          disable_auto_optimization: true
+        - task_key: bronze_ingest
+          depends_on:
+            - task_key: setup
+          notebook_task:
+            notebook_path: /Workspace/Users/<your-user>/indonesia-bank-stocks-databricks/notebooks/01_bronze_ingest
+            source: WORKSPACE
+          min_retry_interval_millis: 900000
+          disable_auto_optimization: true
+        - task_key: silver_transform
+          depends_on:
+            - task_key: bronze_ingest
+          notebook_task:
+            notebook_path: /Workspace/Users/<your-user>/indonesia-bank-stocks-databricks/notebooks/02_silver_transform
+            source: WORKSPACE
+          min_retry_interval_millis: 900000
+          disable_auto_optimization: true
+        - task_key: gold_build
+          depends_on:
+            - task_key: silver_transform
+          notebook_task:
+            notebook_path: /Workspace/Users/<your-user>/indonesia-bank-stocks-databricks/notebooks/03_gold_build
+            source: WORKSPACE
+          min_retry_interval_millis: 900000
+          disable_auto_optimization: true
+      queue:
+        enabled: true
+      parameters:
+        - name: catalog
+          default: workspace
+        - name: landing_path
+          default: /Volumes/workspace/bronze/landing
+        - name: pipeline_run_id
+          default: "{{job.run_id}}"
+        - name: job_run_id
+          default: "{{job.run_id}}"
+      performance_target: PERFORMANCE_OPTIMIZED
