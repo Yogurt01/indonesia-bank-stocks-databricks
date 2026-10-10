@@ -43,8 +43,7 @@ base_date 2019-01-02, last_trade_date 2026-10-08. Values ending in "…" were tr
 
 ¹ **Produced by the earlier K7 rule** (latest date ≤ trough with `drawdown = 0`). 2019-04-19 is a `zero_all_tickers` flat row (a non-trading day,
 `docs/DATASET.md` §6.3). The rule was changed on 2026-10-10 (**DEC-14**: `peak_date` = the day the peak was set). The value is kept here as recorded;
-the next Gold build reports the trading day on which that price was set (not yet observed). The other three `peak_date`s may also change if a flat
-row sat at their peak (to verify with `sql/validation/03_gold.sql` G9).
+the DEC-14 rebuild reports 2019-04-18 (see "DEC-14 rebuild" below, which also lists the BBRI change).
 
 ## Yearly returns captured (G4)
 
@@ -85,3 +84,26 @@ Only the rows visible in the owner's screenshot are recorded. The remaining BBRI
 
 - Gold built by a Job run (see `docs/evidence/d2-06-job.md`).
 - The rerun idempotency comparison (D2-07) and the dashboard reconciliation (REQ-16).
+
+## DEC-14 rebuild (owner-reported, 2026-10-10 about 11:50–12:02 UTC+07)
+
+Job run **766912259782044** rebuilt Gold with the DEC-14 `peak_date` rule (the day the peak was set).
+
+- **G6:** `abs_diff = 0` for all four tickers, so `total_return` is unchanged.
+- **G9** (`sql/validation/03_gold.sql`): every `peak_date` row is a normal trading day, and `peak_adjclose` equals `running_peak_at_trough`.
+
+| ticker | peak_date | trough_date | peak volume_status | peak_adjclose = running_peak_at_trough |
+| ------ | --------- | ----------- | ------------------ | -------------------------------------: |
+| BBCA | 2024-09-23 | 2026-06-08 | normal | 9989.7958984375 |
+| BBNI | 2019-04-18 | 2020-03-24 | normal | 3515.825439453125 |
+| BBRI | 2020-01-23 | 2020-05-18 | normal | 2880.720458984375 |
+| BMRI | 2019-07-15 | 2020-05-18 | normal | 2610.930419921875 |
+
+**Changes compared with the old rule** (the ticker_summary table above):
+- **BBNI:** 2019-04-19 → **2019-04-18**. The old date was a `zero_all_tickers` flat row.
+- **BBRI:** 2020-01-24 → **2020-01-23**. Two consecutive sessions closed at the same `adjclose`; the new rule reports the first one, the date the
+  peak was set.
+- **BBCA and BMRI:** unchanged.
+
+`notebooks/91_rerun_check` was **not** rerun for this build, because DEC-14 intentionally changed `peak_date`. The rerun evidence in
+`docs/evidence/d2-07-rerun.md` stands.
