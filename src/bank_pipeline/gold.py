@@ -130,7 +130,9 @@ def build_yearly(daily, base_date):
 def build_summary(daily, base_date, annualization_factor):
     """ticker_summary without lineage columns: K2, K5, K7.
 
-    trough_date = date of max_drawdown (earliest if tied); peak_date = latest trade_date <= trough_date with drawdown = 0.
+    trough_date = date of max_drawdown (earliest if tied).
+    peak_date (DEC-14) = earliest trade_date <= trough_date whose adjclose equals the running_peak at trough_date, i.e. the day the
+    peak was set. Flat carry-forward rows (holidays) that sit at the peak afterwards are therefore never reported as the peak date.
     """
     from pyspark.sql import functions as F
 
@@ -147,10 +149,14 @@ def build_summary(daily, base_date, annualization_factor):
     trough = (daily.join(per_ticker.select("ticker", "max_drawdown"), "ticker")
               .filter(F.col("drawdown") == F.col("max_drawdown"))
               .groupBy("ticker").agg(F.min("trade_date").alias("trough_date")))
-    # drawdown is exactly 0 on a new peak (adjclose / adjclose - 1).
-    peak = (daily.join(trough, "ticker")
-            .filter((F.col("trade_date") <= F.col("trough_date")) & (F.col("drawdown") == 0))
-            .groupBy("ticker").agg(F.max("trade_date").alias("peak_date")))
+    peak_value = (daily.join(trough, "ticker")
+                  .filter(F.col("trade_date") == F.col("trough_date"))
+                  .select("ticker", "trough_date", F.col("running_peak").alias("peak_value")))
+    # Exact equality is safe: running_peak is max() of adjclose, so it is one of the adjclose doubles, and flat rows carry that
+    # identical value. Before the peak was first set, adjclose is strictly below it, so the earliest match is the setting day.
+    peak = (daily.join(peak_value, "ticker")
+            .filter((F.col("trade_date") <= F.col("trough_date")) & (F.col("adjclose") == F.col("peak_value")))
+            .groupBy("ticker").agg(F.min("trade_date").alias("peak_date")))
 
     return (per_ticker.join(trough, "ticker", "left").join(peak, "ticker", "left")
             .withColumn("base_date", F.lit(base_date).cast("date"))

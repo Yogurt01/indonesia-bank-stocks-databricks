@@ -1,4 +1,6 @@
 -- Bronze validation queries (run in the Databricks SQL editor or a %sql cell).
+-- Uses the catalog `workspace` and the default Volume paths literally (the project default in config/pipeline.json);
+-- if the pipeline runs with another catalog (Job parameter `catalog`), replace `workspace` before running these queries.
 -- Expected values are for the 2026-10-08 snapshot. Results of a run are recorded in docs/evidence/d2-01-bronze.md.
 
 -- Q1  Per-ticker rows, runs, date range and rescued rows.

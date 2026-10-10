@@ -1,4 +1,6 @@
 -- Silver validation queries (run in the Databricks SQL editor or a %sql cell).
+-- Uses the catalog `workspace` and the default Volume paths literally (the project default in config/pipeline.json);
+-- if the pipeline runs with another catalog (Job parameter `catalog`), replace `workspace` before running these queries.
 -- Expected values are for the 2026-10-08 snapshot, derived from docs/DATASET.md and docs/KPI_DEFINITIONS.md §7; to verify.
 
 -- S1  Per-ticker rows and volume_status counts.

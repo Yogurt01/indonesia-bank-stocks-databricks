@@ -1,4 +1,6 @@
 -- Gold validation queries (run in the Databricks SQL editor or a %sql cell).
+-- Uses the catalog `workspace` and the default Volume paths literally (the project default in config/pipeline.json);
+-- if the pipeline runs with another catalog (Job parameter `catalog`), replace `workspace` before running these queries.
 -- Expected values are for the 2026-10-08 snapshot with base date 2019-01-02 (verified in docs/evidence/d2-03-silver.md);
 -- the row counts are derived (1,887 rows minus 2019-01-01 = 1,886 per ticker; months 2019-01..2026-10 = 94; years 2019..2026 = 8). To verify.
 
@@ -87,3 +89,18 @@ FROM workspace.ops.run_audit
 WHERE task_name = 'gold_build'
 ORDER BY started_at DESC
 LIMIT 3;
+
+-- G9  K7 peak_date must be a real trading day (DEC-14: the day the peak was set, not a flat carry-forward row).
+-- Expected: 4 rows; peak_volume_status = 'normal' for all four; peak_date < trough_date; peak_adjclose = running_peak at trough_date.
+--           (Before DEC-14, BBNI's peak_date was 2019-04-19, a zero_all_tickers flat row; see docs/evidence/d2-05-gold.md.)
+SELECT
+  s.ticker,
+  s.peak_date,
+  s.trough_date,
+  p.volume_status          AS peak_volume_status,
+  p.adjclose               AS peak_adjclose,
+  t.running_peak           AS running_peak_at_trough
+FROM workspace.gold.ticker_summary s
+JOIN workspace.gold.fact_daily_metrics p ON p.ticker = s.ticker AND p.trade_date = s.peak_date
+JOIN workspace.gold.fact_daily_metrics t ON t.ticker = s.ticker AND t.trade_date = s.trough_date
+ORDER BY s.ticker;

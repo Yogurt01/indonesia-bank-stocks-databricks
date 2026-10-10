@@ -6,19 +6,20 @@
 
 ## 1. Code Correctness (REQ-26, SHOULD)
 
-- Transformation logic lives in **pure functions in `.py` modules** in the repo. Notebooks import and call them.
-- The notebook `tests/run_unit_tests` builds small hand-made DataFrames and checks the results with plain `assert` statements (no extra libraries).
-- Window sizes are function parameters, so tests use **window 3** and hand-computed values.
-- **Cases:**
-  - `volume_status` classification;
-  - NULL daily return on flagged rows, and a return computed from the previous normal row;
-  - base-date selection;
-  - rolling volatility: leading NULLs and value;
-  - drawdown is 0 on a new peak;
-  - monthly and yearly returns and `is_partial`;
-  - relative volume excludes day t;
-  - a malformed date cast goes to quarantine.
-- **To verify in the first notebook:** whether serverless notebooks can import `.py` files from a Git folder. Fallback: `%run` a functions notebook.
+- Transformation logic lives in **functions in `.py` modules** under `src/bank_pipeline/`; notebooks import and call them. The import of `.py`
+  files from the Git folder via `sys.path` was verified in D1-10 (`docs/evidence/d1-10-setup.md`), so no `%run` fallback is needed.
+- Window sizes are function parameters, so the Spark tests use **N = M = 3** and hand-computed values (absolute tolerance 1e-12).
+- Both test files use plain `assert` statements; no extra libraries.
+
+| Test file | Runs where | How to run | Covers |
+| --------- | ---------- | ---------- | ------ |
+| `tests/test_pure.py` | Locally (plain Python, no Spark, no data files) | `python tests/test_pure.py` from the repo root; prints PASS/FAIL per test and `PURE TESTS PASS`; exit code 1 on failure | `config` (find_repo_root, load_config overrides, catalog validation incl. the D2-09 misentered path, table_name); `bronze` helpers; `dq` (to_rows, critical_failures, severity validation); `audit` row builder; `fixtures` (line replacement, LF/CRLF, fixture root from the catalog); `rerun` (pick_versions, evaluate) |
+| `tests/run_unit_tests.py` | Databricks (serverless notebook from the Git folder) | Run the notebook `tests/run_unit_tests`; prints PASS/FAIL per check and `UNIT TESTS PASS`; asserts at the end; writes no table | `silver`: volume_status (2 tickers × 4 days), base_date, reject_reasons (each code plus a valid row), timestamp parsing, duplicate_keys. `gold`: daily_return (NULL on flagged and base rows, computed across a flagged gap), vol with N = 3 (leading NULLs, hand-computed stddev_samp × √A), normalized index, drawdown and running peak, ticker_summary (total return, full volatility, max drawdown with a tie, peak/trough dates per DEC-14 incl. a holiday at the peak and a re-touch of the peak, current drawdown), rel_volume with M = 3 (excludes day t), monthly/yearly returns (first period from the base price, `is_partial` for first, running and complete months, compounding) |
+
+- **K7 `peak_date` (DEC-14, 2026-10-10):** the tests check that `peak_date` is the trading day the peak was set (2020-01-02), not the flat holiday
+  row after it (2020-01-03, which the earlier rule returned), and that a re-touch of the peak level before the trough reports the first day the
+  level was set. The expected values were recomputed with an independent plain-Python model.
+- A malformed date goes to quarantine through `reject_reasons` (`invalid_date`), which the Spark tests cover.
 
 ## 2. Data Quality (REQ-08, MUST)
 
@@ -97,8 +98,9 @@ Implemented Bronze check names (`notebooks/01_bronze_ingest.py`): `bronze_all_ti
      - `silver_transform` fails on `silver_no_duplicate_keys` and writes nothing;
      - `gold_build` is skipped;
      - Silver and Gold keep the previous run's data (their `pipeline_run_id` is unchanged).
-  4. Recovery: start a **new** run with the real `landing_path` (not Repair run, which would reuse the failing parameters). This restores Bronze
-     from the real files and rebuilds Silver and Gold.
+  4. Recovery: start a **new** full run with the real `landing_path`. Repair run is not enough, because it reruns only the failed task and its
+     downstream tasks, so the already-succeeded `bronze_ingest` would not reload Bronze. The new run restores Bronze from the real files and rebuilds
+     Silver and Gold. Executed 2026-10-10: failing run 164942117421206, recovery run 318690159636842 (`docs/evidence/d2-09-failure-test.md`).
   5. Record both run IDs and verify with `sql/validation/05_failure_test.sql` (Section 1 after the failing run, Section 2 after the recovery).
      Step-by-step procedure: `docs/RUNBOOK.md`.
   6. **Runbook note:** between the failed run and the recovery run, Bronze holds the fixture data while Silver and Gold still hold the previous good

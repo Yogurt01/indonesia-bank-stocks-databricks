@@ -21,6 +21,11 @@ Purpose: prove that a CRITICAL check stops the pipeline before bad data reaches 
 1. **Build the fixture:** run `notebooks/90_make_failure_fixture` (defaults: `ticker_folder = bbca`, `row_to_replace = 100`).
    - It copies the 8 landed files to `/Volumes/workspace/bronze/test_fixtures/failure_dup_key/` and replaces one BBCA data row with a copy of the previous row.
    - Expected output: `FIXTURE READY`. Row counts are unchanged and exactly 1 duplicated key exists. The real landing Volume is not modified.
+> **Warning: one-run override vs saved defaults.** Values typed into the Job's **Job parameters** panel change the **saved defaults** for every
+> later run. **Run now with different parameters** changes only that one run. In this project, typing the fixture path into the `catalog` field of
+> the parameters panel saved it as the default and made runs 268776281869222 and 844273765778101 fail in `setup`
+> (`docs/evidence/d2-09-failure-test.md`). Always use the one-run override for the test, and check the defaults afterwards.
+
 2. **Run the Job against the fixture:** open the Job page → **Run now** dropdown → **Run now with different parameters** → set
    `landing_path = /Volumes/workspace/bronze/test_fixtures/failure_dup_key` → **Run**.
 3. **Expected:**
@@ -43,8 +48,10 @@ finishes.
 1. Fix the cause first. For the induced test, the "fix" is simply to use the real landing path again.
 2. Start a **new run with the correct parameters**: Job page → **Run now**. The defaults point to the real `landing_path`; if you overrode it before,
    check that it is back to `/Volumes/workspace/bronze/landing`.
-3. **Do not use Repair run** for this case: Repair run re-executes the failed tasks with the **failing run's parameters**, so it would read the
-   fixture again and fail the same way. Repair run is for transient failures (for example a compute hiccup) where the parameters were correct.
+3. **Do not use Repair run** for this case. Repair run re-executes only the failed task and its downstream tasks, so `bronze_ingest`, which
+   succeeded, is **not** rerun, and Bronze would still hold the fixture data. Recovery therefore needs a **new full run** with the default parameters.
+   Repair run is for transient failures (for example a compute hiccup) where the earlier tasks' outputs are still correct.
+   *(Which parameters a Repair run uses was not verified in this project.)*
 4. Verify:
    - all 4 tasks succeed;
    - Section 2 of `sql/validation/05_failure_test.sql` with `<recovery_run_id>`: 3 `SUCCEEDED` audit rows, Bronze without duplicates and back on

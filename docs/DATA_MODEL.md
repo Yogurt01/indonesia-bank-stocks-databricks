@@ -115,8 +115,10 @@ One dimension plus four fact tables, each at exactly one grain.
 - **`is_partial`** (data-derived, no hard-coded dates): TRUE for each ticker's first period (it starts at the base date), and TRUE for the period
   containing the dataset's last `trade_date` when that date is earlier than the period's last weekday (Mon–Fri). *Conservative:* an exchange
   holiday on the last weekday would mark a complete final period as partial.
-- **K7 peak and trough:** `trough_date` = date of `max_drawdown` (earliest if tied); `peak_date` = latest `trade_date` ≤ `trough_date` where
-  `drawdown = 0`.
+- **K7 peak and trough:** `trough_date` = date of `max_drawdown` (earliest if tied); `peak_date` = earliest `trade_date` ≤ `trough_date` whose
+  `adjclose` equals the `running_peak` at `trough_date`, i.e. the day the peak was set (**DEC-14**, 2026-10-10). Flat carry-forward rows at the peak
+  are excluded; the earlier rule (latest date with `drawdown = 0`) reported BBNI's zero_all_tickers row 2019-04-19. The comparison is exact because
+  `running_peak` is one of the `adjclose` values and flat rows carry it unchanged.
 - **Lineage:** `source_run_id` from Silver (exactly one distinct value, CRITICAL check); `source_ingested_at` = `max(source_ingested_at)` of Silver.
 - **Atomicity:** each table overwrite is atomic (Delta), but not across the five tables; a failure between writes is recovered by rerunning the task.
 

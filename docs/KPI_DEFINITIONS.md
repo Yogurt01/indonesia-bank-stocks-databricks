@@ -56,7 +56,7 @@ so there is no market capitalization, valuation or turnover ratio.
 | K4 | Rolling volatility | `stddev_samp(K3 over the last 60 normal rows including t) * sqrt(252)`; NULL until 60 observations | ticker × day | normal only | Q2 | MUST |
 | K5 | Full-period volatility | `stddev_samp(all K3) * sqrt(252)` | ticker | normal only | Q2 | MUST |
 | K6 | Drawdown | `adjclose(t) / max(adjclose from base_date to t) - 1` (always ≤ 0); also store `running_peak` | ticker × day | all rows | Q3 | MUST |
-| K7 | Max and current drawdown | `max_drawdown = min(K6)`; `peak_date` and `trough_date` of that episode; `current_drawdown` = K6 on the last date | ticker | all rows | Q3 | MUST |
+| K7 | Max and current drawdown | `max_drawdown = min(K6)`; `trough_date` = earliest date of `max_drawdown`; `peak_date` = earliest date ≤ `trough_date` whose `adjclose` equals the `running_peak` at `trough_date` (the day the peak was set; DEC-14, 2026-10-10); `current_drawdown` = K6 on the last date | ticker | all rows | Q3 | MUST |
 | K8 | Monthly return | `adjclose(last row of month m) / adjclose(last row of month m-1) - 1`; the first period starts at `base_date`; `is_partial` flag | ticker × month | all rows | Q4 | MUST |
 | K9 | Yearly return | Same as K8 by calendar year; `is_partial` flag | ticker × year | all rows | Q4 | MUST |
 | K10 | Relative volume | `volume(t) / avg(volume over the 60 previous normal rows, excluding t)`; NULL until 60 are available | ticker × day | normal only | Q5 | SHOULD |
@@ -106,7 +106,7 @@ In the current snapshot that means October 2026 and the year 2026. It is derived
 | Normal sessions per year | ~236–247 |
 | K4 leading NULLs per ticker | Exactly 60 (K3 is NULL on the base date because there is no earlier normal row, so 60 K3 observations first exist on the 61st normal row) |
 | K6 | Never positive; 0 on new peaks |
-| K7 | `trough_date` after `peak_date` |
+| K7 | `trough_date` after `peak_date`; the `peak_date` row has `volume_status = 'normal'` (DEC-14; `sql/validation/03_gold.sql` G9) |
 | K8 vs K9 consistency | Product of (1 + K8) within a year equals 1 + K9, within rounding tolerance |
 | `is_partial` counts | First month and year, plus October 2026 and 2026 in the current snapshot |
 | Volume level shift around the adjustment dates | BBNI ~2023-10-05, BMRI ~2023-04-03 (R-16) |

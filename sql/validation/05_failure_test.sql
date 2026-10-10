@@ -1,4 +1,6 @@
 -- Induced-failure test verification (D2-09, DEC-13 option A). Procedure: docs/RUNBOOK.md.
+-- Uses the catalog `workspace` and the default Volume paths literally (the project default in config/pipeline.json);
+-- if the pipeline runs with another catalog (Job parameter `catalog`), replace `workspace` before running these queries.
 -- Expected values assume the 2026-10-08 snapshot and that the last good run before the test is Job run 371194405323795
 -- (docs/evidence/d2-07-rerun.md). To verify.
 
