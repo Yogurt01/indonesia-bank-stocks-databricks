@@ -36,7 +36,7 @@
 | 2 | `sql/validation/*.sql` use `workspace.*` literally without saying so | Low (documentation) | Fixed: header note in all four files |
 | 3 | Secret, email, host and user-path scan: **0 matches** in all files except this one, whose lines 14 and 24–25 list the scan patterns themselves (pattern names, no values) | — | None |
 | 4 | Keyword hits are explanatory text or ignore patterns only: `.gitignore` lines 9, 14, 19; `docs/DATASET.md:200` (names of Kaggle auth options, no values); `docs/TEST_STRATEGY.md` ("Databricks Connect would need a token"); `docs/evidence/d1-02-workspace-capabilities.md` (the "Secret scopes" row) | — | None |
-| 5 | `git status --ignored` lists `.claude/`, `CLAUDE.md`, `PROJECT_PLAN.md`, `data/` and `kaggle-cli/` as ignored; none of them is tracked | — | None |
+| 5 | `git status --ignored` lists the raw-data folder, the local planning and AI-assistant files and the third-party reference docs as ignored; none of them is tracked | — | None |
 | 6 | The Job YAML contains only the placeholders `<your-email>` and `<your-user>` | — | None |
 
 ## Result

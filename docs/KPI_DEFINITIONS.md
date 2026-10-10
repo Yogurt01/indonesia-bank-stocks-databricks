@@ -92,7 +92,7 @@ In the current snapshot that means October 2026 and the year 2026. It is derived
 - `adjclose` is rewritten on every refresh, so KPI history belongs to a snapshot (G6).
 - The 252-session annualization is a convention, not the observed session count.
 - K10 is sensitive to volume spikes because it uses the mean.
-- Volume may not be adjusted for corporate actions (see risk R-16 in `PROJECT_PLAN.md`).
+- Volume may not be adjusted for corporate actions (see [`docs/LIMITATIONS.md`](LIMITATIONS.md)).
 - KPIs over an arbitrary dashboard date window (rebased index, window volatility, window drawdown) are **not precomputed in v1**. This is a design point for DEC-08.
 
 ## 7. To Verify on Databricks

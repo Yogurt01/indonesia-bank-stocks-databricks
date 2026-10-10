@@ -6,7 +6,7 @@
 
 ## 1. Dataset Collection Overview
 
-**Project purpose:** source data for the Databricks Bronze → Silver → Gold batch pipeline in `PROJECT_PLAN.md`.
+**Project purpose:** source data for the Databricks Bronze → Silver → Gold batch pipeline described in `README.md` and `docs/ARCHITECTURE.md`.
 **Business domain (owner-approved, DEC-02):** Financial Market Analytics, specifically Indonesian Banking Stock Performance Analytics:
 comparing the historical price performance, returns, volatility and trading volume of four Indonesian banks.
 
@@ -197,9 +197,9 @@ The final KPI formulas were decided in **DEC-03** ([`docs/KPI_DEFINITIONS.md`](K
 ## 10. Reproducibility and Source Attribution
 
 **Prerequisites:** a Kaggle account; Kaggle CLI 2.x (this project used 2.2.4, installed with `uv tool install kaggle`); credentials configured as
-described in `kaggle-cli/README.md` (`kaggle auth login`, `KAGGLE_API_TOKEN`, or `~/.kaggle/access_token`). Never commit credentials.
+described in the Kaggle CLI documentation (<https://github.com/Kaggle/kaggle-cli/tree/main/docs>; for example `kaggle auth login`, the `KAGGLE_API_TOKEN` environment variable, or `~/.kaggle/access_token`). Never commit credentials.
 
-**Download (run from the repository root).** The full step-by-step procedure is in [`.claude/skills/kaggle-cli/SKILL.md`](../.claude/skills/kaggle-cli/SKILL.md).
+**Download (run from the repository root).** The full setup is in [`README.md`](../README.md) ("Reproduce it").
 ```bash
 kaggle datasets download caesarmario/bank-central-asia-stock-historical-price -p /tmp/bbca-dl
 ```
@@ -226,4 +226,4 @@ date alignment; and agreement with the JSON `dq` blocks. Raw-file SHA-256 checks
 
 **Public repository:** the raw files under `data/` must **not** be committed. Another developer obtains the data independently with the commands above.
 Publishing code, documentation, aggregate results and screenshots is the intended approach. Whether that is fully permitted depends on the unresolved upstream
-terms, which is recorded as risk R-12 in `PROJECT_PLAN.md` rather than treated as settled.
+terms, which is recorded in [`docs/LIMITATIONS.md`](LIMITATIONS.md) rather than treated as settled.

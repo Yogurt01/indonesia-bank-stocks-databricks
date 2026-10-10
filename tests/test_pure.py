@@ -13,7 +13,7 @@ from pathlib import Path
 REPO_ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(REPO_ROOT / "src"))
 
-from bank_pipeline import audit, bronze, config, dq, fixtures, rerun  # noqa: E402
+from bank_pipeline import audit, bronze, config, dq, fixtures, gold, reset, rerun  # noqa: E402
 
 HEADER = "Date,open,high,low,close,adjclose,volume,ingested_at_utc"
 TESTS = []
@@ -166,6 +166,31 @@ def rerun_evaluate():
         assert rerun.evaluate({**base, key: value}) == "FAIL", key
     assert rerun.evaluate(dict(keys=None, rows_prev=0, rows_latest=0, note="")) == "PASS"
     assert rerun.evaluate(dict(keys=None, rows_prev=0, rows_latest=1, note="")) == "FAIL"
+
+
+# ---- reset ----------------------------------------------------------------------------------------------------------
+
+@test
+def reset_tables_to_drop():
+    cfg = config.load_config(REPO_ROOT)
+    tables = reset.tables_to_drop(cfg)
+    assert len(tables) == len(set(tables)) == 11 and all(t.startswith("workspace.") for t in tables)
+    # Every pipeline table: the 9 compared by the rerun check (Bronze, Silver, Gold) plus the 2 ops tables.
+    expected = {config.table_name(cfg, layer, name) for layer, name in rerun.TABLE_KEYS}
+    expected |= {config.table_name(cfg, "ops", "run_audit"), config.table_name(cfg, "ops", "dq_results")}
+    assert set(tables) == expected, set(tables) ^ expected
+    assert {config.table_name(cfg, "gold", name) for name in gold.TABLE_KEYS} <= set(tables)
+    assert tables.index("workspace.gold.ticker_summary") < tables.index("workspace.bronze.daily_prices_raw")  # Gold first
+    # Names follow the catalog override; schemas and Volumes are never in the list.
+    assert all(t.startswith("other_cat.") for t in reset.tables_to_drop(config.load_config(REPO_ROOT, {"catalog": "other_cat"})))
+    assert not any(t.count(".") != 2 or "landing" in t or "test_fixtures" in t for t in tables)
+
+
+@test
+def reset_confirmation():
+    assert reset.is_confirmed("RESET") and reset.is_confirmed("  RESET ")
+    for value in ("", None, "reset", "RESET!", "yes", "RE SET"):
+        assert not reset.is_confirmed(value), value
 
 
 def main():

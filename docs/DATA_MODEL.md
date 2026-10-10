@@ -1,10 +1,11 @@
 # Data Model
 
-> **Status:** owner-approved design (Gold: DEC-08; Bronze, Silver, quarantine and `ops`: D1-09), 2026-10-09. Implementation is pending.
-> Everything here is design. Row counts are expectations derived from `docs/DATASET.md`, not measured Databricks results.
+> **Status:** implemented and verified in Databricks (Gold design: DEC-08; see `docs/DECISIONS.md`). Row counts quoted here are those recorded for
+> the 2026-10-08 snapshot in `docs/evidence/` (Bronze/Silver 4 × 1,887, Gold daily 7,544, monthly 376, yearly 32). The full **data dictionary**
+> (every column with type and description) is in §5.
 >
 > Related: KPI formulas in [`docs/KPI_DEFINITIONS.md`](KPI_DEFINITIONS.md) (DEC-03); tests and DQ checks in
-> [`docs/TEST_STRATEGY.md`](TEST_STRATEGY.md) (DEC-10); configuration in `config/pipeline.json`.
+> [`docs/TEST_STRATEGY.md`](TEST_STRATEGY.md) and [`docs/DQ_CATALOG.md`](DQ_CATALOG.md); configuration in `config/pipeline.json`.
 
 ## 0. Landing (source files in Databricks)
 
@@ -40,7 +41,7 @@ check `silver_no_duplicate_keys` stops the run before anything is written.
 | `ops.run_audit` | `pipeline_run_id`, `task_name` | `job_run_id`, `started_at`, `ended_at`, `status`, `rows_in`, `rows_out`, `rows_rejected`, `error_message` | Append-only |
 | `ops.dq_results` | `pipeline_run_id`, `check_name` | `layer`, `severity`, `passed`, `failing_count`, `expected`, `details`, `checked_at` | Append-only |
 
-**`pipeline_run_id`:** taken from the Job parameter `{{job.run_id}}` (to verify on Free Edition); a UUID when a notebook runs interactively.
+**`pipeline_run_id`:** taken from the Job parameter `{{job.run_id}}` (verified on Free Edition, `docs/evidence/d2-06-job.md`); a UUID when a notebook runs interactively.
 
 ## Source-to-Target Mapping
 
@@ -101,7 +102,7 @@ One dimension plus four fact tables, each at exactly one grain.
 - Every Gold table also has the lineage columns `source_run_id`, `source_ingested_at` (= `max(ingested_at_utc)` of the landed daily CSVs), `pipeline_run_id` and `built_at`.
 - Full overwrite on every run (DEC-06).
 - Gold rows start at the base date (`docs/KPI_DEFINITIONS.md` G3).
-- **No partitioning or clustering:** about 7,500 daily rows in total (expected: 4 tickers × ~1,886 rows from the base date). *Recorded for REQ-22.*
+- **No partitioning or clustering:** 7,544 daily rows in total (4 tickers × 1,886 rows from the base date; `docs/evidence/d2-05-gold.md`), far too small to benefit.
 - **No `dim_date`:** `year` and `month` are columns on the facts.
 - **Column order:** as in the table above (key first, lineage last); implemented in `src/bank_pipeline/gold.py`.
 
@@ -128,11 +129,154 @@ One dimension plus four fact tables, each at exactly one grain.
 
 ### Dashboard date windows
 - **v1 (MUST):** KPIs are shown for fixed periods (full period, calendar year, month). The global date filter applies to the time-series visuals.
-- **SHOULD (attempted in D3 only if time allows):** a Unity Catalog SQL table function such as `gold.fn_window_performance(start_date, end_date)`,
+- **Not implemented in v1 (optional extension):** a Unity Catalog SQL table function such as `gold.fn_window_performance(start_date, end_date)`,
   returning per ticker the window's total return, volatility and max drawdown, called by a parameterized dashboard dataset, so the KPI logic stays in Gold.
   **Unverified on Free Edition** (SQL table functions and AI/BI dashboard parameters). If unavailable, fall back to the MUST approach.
 
 ### Rationale
 - Each question Q1–Q5 is answered by single-table queries (no fact-to-fact joins), so dashboard queries stay thin (filter and select).
-- Each KPI lives in exactly one place, which keeps reconciliation (REQ-16) simple.
+- Each KPI lives in exactly one place, which keeps the dashboard reconciliation simple (`docs/evidence/d3-03-dashboard-reconciliation.md`).
 - A combined monthly/yearly table with a `period_type` column was **rejected** because it makes queries and key checks harder to read.
+
+
+## 5. Data dictionary
+
+Types are those produced by the code (`notebooks/00_setup.py` DDL for `ops`; the Spark DataFrames in `src/bank_pipeline/` for the other tables).
+Confirm them in a workspace with `DESCRIBE TABLE <name>`. All tables are Delta tables in the catalog `workspace`.
+
+### `bronze.daily_prices_raw`: one row per source CSV data row (7,548)
+
+| Column | Type | Description |
+| ------ | ---- | ----------- |
+| `source_date` | STRING | CSV `Date` as written in the file (`YYYY-MM-DD`) |
+| `open`, `high`, `low`, `close`, `adjclose` | STRING | Prices as written in the file (`adjclose` = close adjusted for dividends and corporate actions) |
+| `volume` | STRING | Traded volume as written in the file |
+| `ingested_at_utc` | STRING | The source publisher's write timestamp (`YYYY-MM-DD HH:MM:SS.ffffff+00:00`) |
+| `ticker` | STRING | Project ticker (BBCA, BBNI, BMRI, BBRI) from the landing folder |
+| `source_file` | STRING | Path of the landed file (from `_metadata.file_path`) |
+| `bronze_loaded_at` | TIMESTAMP | Load time of this Bronze write |
+| `pipeline_run_id` | STRING | Pipeline run that wrote the row |
+| `_rescued_data` | STRING | Values that did not fit the 8-column schema (NULL when none) |
+
+### `bronze.source_run_summary`: one row per ticker (4)
+
+| Column | Type | Description |
+| ------ | ---- | ----------- |
+| `ticker` | STRING | Project ticker from the landing folder |
+| `source_symbol` | STRING | Ticker field of `run-summary.json` (for example `BBCA.JK`) |
+| `stock` | STRING | Publisher's short stock name |
+| `source_run_id` | STRING | Publisher's extraction run ID (one per snapshot) |
+| `daily_rows` | BIGINT | Daily row count stated by the publisher |
+| `daily_date_max` | STRING | Last daily date stated by the publisher (`YYYY-MM-DD HH:MM:SS`) |
+| `daily_duplicate_dates` | BIGINT | Duplicate dates stated by the publisher |
+| `raw_json` | STRING | The whole `run-summary.json` as JSON text |
+| `source_file`, `bronze_loaded_at`, `pipeline_run_id` | STRING, TIMESTAMP, STRING | As in `daily_prices_raw` |
+
+### `silver.daily_prices`: one row per (`ticker`, `trade_date`) (7,548)
+
+| Column | Type | Description |
+| ------ | ---- | ----------- |
+| `ticker` | STRING | Project ticker |
+| `trade_date` | DATE | Trading day (`try_cast` of `source_date`) |
+| `open`, `high`, `low`, `close` | DOUBLE | Prices adjusted for corporate actions (as published) |
+| `adjclose` | DOUBLE | Close adjusted for dividends and corporate actions; basis of all return KPIs |
+| `volume` | BIGINT | Traded volume |
+| `volume_status` | STRING | `normal` (volume > 0); `zero_all_tickers` (no ticker traded that day); `zero_partial` (this ticker 0 while another traded) |
+| `source_ingested_at` | TIMESTAMP | Parsed `ingested_at_utc` |
+| `source_file` | STRING | Landed file path |
+| `source_run_id` | STRING | Publisher's run ID (from `bronze.source_run_summary`) |
+| `pipeline_run_id` | STRING | Pipeline run that wrote the row |
+| `processed_at` | TIMESTAMP | Silver write time |
+
+### `silver.daily_prices_quarantine`: one row per rejected Bronze row (0 in the recorded runs)
+
+| Column | Type | Description |
+| ------ | ---- | ----------- |
+| `source_date` … `_rescued_data` | as in `bronze.daily_prices_raw` | The rejected row exactly as stored in Bronze (Bronze's run ID renamed `bronze_pipeline_run_id`) |
+| `reject_reason` | STRING | `;`-joined codes: `invalid_date`, `invalid_price`, `non_positive_price`, `invalid_volume`, `ohlc_inconsistent`, `rescued_data_present` |
+| `pipeline_run_id` | STRING | Silver run that quarantined the row |
+| `quarantined_at` | TIMESTAMP | Silver write time |
+
+### `gold.dim_ticker`: one row per ticker (4)
+
+| Column | Type | Description |
+| ------ | ---- | ----------- |
+| `ticker` | STRING | Project ticker |
+| `bank_name` | STRING | Full bank name (from `config/pipeline.json`) |
+| `short_name` | STRING | Display name (BCA, BNI, Mandiri, BRI) |
+| + lineage | | See "Lineage columns" below |
+
+### `gold.fact_daily_metrics`: one row per (`ticker`, `trade_date`) from the base date (7,544)
+
+| Column | Type | Description |
+| ------ | ---- | ----------- |
+| `ticker`, `trade_date` | STRING, DATE | Key |
+| `close`, `adjclose` | DOUBLE | Reference price and total-return price (from Silver) |
+| `volume`, `volume_status` | BIGINT, STRING | From Silver |
+| `normalized_index` | DOUBLE | K1: 100 × adjclose / adjclose on the base date |
+| `daily_return` | DOUBLE | K3: simple return vs the previous normal row; NULL on flagged rows and on the base date |
+| `vol_60d_ann` | DOUBLE | K4: sample std. dev. of the last 60 normal-row returns × √252; NULL until 60 returns exist and on flagged rows |
+| `running_peak` | DOUBLE | Highest adjclose from the base date to this day |
+| `drawdown` | DOUBLE | K6: adjclose / running_peak − 1 (≤ 0) |
+| `rel_volume_60d` | DOUBLE | K10: volume / mean volume of the previous 60 normal rows; NULL until available and on flagged rows |
+| `year`, `month` | INT, INT | Calendar year and month of `trade_date` |
+| + lineage | | See below |
+
+### `gold.fact_monthly_metrics`: one row per (`ticker`, `month_start`) (376)
+
+| Column | Type | Description |
+| ------ | ---- | ----------- |
+| `ticker`, `month_start` | STRING, DATE | Key (`month_start` = first day of the month) |
+| `monthly_return` | DOUBLE | K8: month-end adjclose / previous month-end adjclose − 1 (first month from the base date) |
+| `avg_daily_volume` | DOUBLE | K11: mean volume over normal sessions |
+| `n_sessions`, `n_normal_sessions` | BIGINT, BIGINT | Rows in the month; normal rows in the month |
+| `is_partial` | BOOLEAN | First month, or the month still running at the snapshot's last trade date |
+| + lineage | | See below |
+
+### `gold.fact_yearly_metrics`: one row per (`ticker`, `year`) (32)
+
+| Column | Type | Description |
+| ------ | ---- | ----------- |
+| `ticker`, `year` | STRING, INT | Key |
+| `yearly_return` | DOUBLE | K9: year-end adjclose / previous year-end adjclose − 1 (first year from the base date) |
+| `n_sessions` | BIGINT | Rows in the year |
+| `is_partial` | BOOLEAN | First year, or the year still running |
+| + lineage | | See below |
+
+### `gold.ticker_summary`: one row per ticker (4)
+
+| Column | Type | Description |
+| ------ | ---- | ----------- |
+| `ticker` | STRING | Key |
+| `total_return` | DOUBLE | K2: last adjclose / base-date adjclose − 1 |
+| `vol_full_ann` | DOUBLE | K5: sample std. dev. of all daily returns × √252 |
+| `max_drawdown` | DOUBLE | K7: minimum drawdown |
+| `peak_date` | DATE | Day the peak before the deepest drawdown was set (DEC-14) |
+| `trough_date` | DATE | Day of the deepest drawdown (earliest if tied) |
+| `current_drawdown` | DOUBLE | Drawdown on the last trade date |
+| `base_date`, `last_trade_date` | DATE, DATE | First and last day of the measured period |
+| + lineage | | See below |
+
+### Lineage columns (every Gold table)
+
+| Column | Type | Description |
+| ------ | ---- | ----------- |
+| `source_run_id` | STRING | Publisher's run ID of the snapshot |
+| `source_ingested_at` | TIMESTAMP | Latest publisher write timestamp in the snapshot |
+| `pipeline_run_id` | STRING | Pipeline run that built the table |
+| `built_at` | TIMESTAMP | Gold write time |
+
+### `ops.run_audit` (append-only) and `ops.dq_results` (append-only)
+
+| Table | Column | Type | Description |
+| ----- | ------ | ---- | ----------- |
+| `run_audit` | `pipeline_run_id`, `task_name`, `job_run_id` | STRING | Run and task identifiers (`job_run_id` NULL for interactive runs) |
+| `run_audit` | `started_at`, `ended_at` | TIMESTAMP | Task start and end (UTC) |
+| `run_audit` | `status` | STRING | `SUCCEEDED` or `FAILED` |
+| `run_audit` | `rows_in`, `rows_out`, `rows_rejected` | BIGINT | Row counts of the task |
+| `run_audit` | `error_message` | STRING | Error text (truncated to 2,000 characters) on failure |
+| `dq_results` | `pipeline_run_id`, `check_name`, `layer`, `severity` | STRING | Run, check and layer; severity `CRITICAL`, `WARN` or `INFO` |
+| `dq_results` | `passed` | BOOLEAN | Check result |
+| `dq_results` | `failing_count` | BIGINT | Number of failing items (a monitored count for INFO checks) |
+| `dq_results` | `expected`, `details` | STRING | Expected value and diagnostic details |
+| `dq_results` | `checked_at` | TIMESTAMP | When the checks were recorded |

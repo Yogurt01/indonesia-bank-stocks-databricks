@@ -1,0 +1,1443 @@
+{
+  "datasets": [
+    {
+      "name": "57dcbdc8",
+      "displayName": "ds_summary",
+      "queryLines": [
+        "-- Dataset: ds_summary\n",
+        "-- Purpose: full-period KPIs per bank (K2 total return, K5 volatility, K7 max/current drawdown with peak and trough dates) plus the snapshot lineage.\n",
+        "-- Grain:   one row per ticker (4 rows).\n",
+        "-- Source:  gold.ticker_summary joined to gold.dim_ticker (display names). Gold only; no KPI formulas here (docs/KPI_DEFINITIONS.md).\n",
+        "-- Used by: V1 summary table, V2 total-return bar, V5 full-period volatility bar (dashboards/DASHBOARD_SPEC.md).\n",
+        "-- Note:    uses the catalog `workspace` literally (project default in config/pipeline.json); replace it if the pipeline runs with another catalog.\n",
+        "SELECT\n",
+        "  s.ticker,\n",
+        "  d.short_name,\n",
+        "  d.bank_name,\n",
+        "  s.total_return,\n",
+        "  s.vol_full_ann,\n",
+        "  s.max_drawdown,\n",
+        "  s.peak_date,\n",
+        "  s.trough_date,\n",
+        "  s.current_drawdown,\n",
+        "  s.base_date,\n",
+        "  s.last_trade_date,\n",
+        "  s.source_run_id,\n",
+        "  s.source_ingested_at\n",
+        "FROM workspace.gold.ticker_summary s\n",
+        "JOIN workspace.gold.dim_ticker d ON d.ticker = s.ticker\n",
+        "ORDER BY s.ticker\n"
+      ],
+      "catalog": "workspace",
+      "schema": "default"
+    },
+    {
+      "name": "77a6ff5e",
+      "displayName": "ds_daily",
+      "queryLines": [
+        "-- Dataset: ds_daily\n",
+        "-- Purpose: daily time series per bank: K1 normalized index (base 100 = base date), K3 daily return, K4 60-session volatility, K6 drawdown,\n",
+        "--          K10 relative volume, plus volume_status (flagged rows have NULL return statistics).\n",
+        "-- Grain:   one row per ticker and trade_date (7,544 rows for the 2026-10-08 snapshot).\n",
+        "-- Source:  gold.fact_daily_metrics. Gold only; no KPI formulas here.\n",
+        "-- Used by: V3 normalized index, V4 rolling volatility, V6 drawdown (dashboards/DASHBOARD_SPEC.md); filtered by ticker and the trade_date range.\n",
+        "-- Note:    uses the catalog `workspace` literally; replace it if the pipeline runs with another catalog.\n",
+        "SELECT\n",
+        "  ticker,\n",
+        "  trade_date,\n",
+        "  normalized_index,\n",
+        "  daily_return,\n",
+        "  vol_60d_ann,\n",
+        "  drawdown,\n",
+        "  rel_volume_60d,\n",
+        "  volume_status\n",
+        "FROM workspace.gold.fact_daily_metrics\n",
+        "ORDER BY ticker, trade_date\n"
+      ]
+    },
+    {
+      "name": "0aa7ebe5",
+      "displayName": "ds_monthly",
+      "queryLines": [
+        "-- Dataset: ds_monthly\n",
+        "-- Purpose: monthly returns (K8) and average daily volume over normal sessions (K11) per bank, with session counts and the partial-period flag.\n",
+        "-- Grain:   one row per ticker and month_start (376 rows for the 2026-10-08 snapshot).\n",
+        "-- Source:  gold.fact_monthly_metrics. Gold only; no KPI formulas here.\n",
+        "-- Used by: V8 monthly-return table, V9 average daily volume (dashboards/DASHBOARD_SPEC.md); filtered by ticker and the month_start range.\n",
+        "-- Note:    uses the catalog `workspace` literally; replace it if the pipeline runs with another catalog.\n",
+        "SELECT\n",
+        "  ticker,\n",
+        "  month_start,\n",
+        "  monthly_return,\n",
+        "  avg_daily_volume,\n",
+        "  n_sessions,\n",
+        "  n_normal_sessions,\n",
+        "  is_partial\n",
+        "FROM workspace.gold.fact_monthly_metrics\n",
+        "ORDER BY ticker, month_start\n"
+      ]
+    },
+    {
+      "name": "c633b0c4",
+      "displayName": "ds_yearly",
+      "queryLines": [
+        "-- Dataset: ds_yearly\n",
+        "-- Purpose: calendar-year returns (K9) per bank with the partial-period flag.\n",
+        "-- Grain:   one row per ticker and year (32 rows for the 2026-10-08 snapshot).\n",
+        "-- Source:  gold.fact_yearly_metrics. Gold only. year_label is presentation only (an axis label marking partial years), not a KPI formula.\n",
+        "-- Used by: V7 yearly-return grouped bar (dashboards/DASHBOARD_SPEC.md); filtered by ticker.\n",
+        "-- Note:    uses the catalog `workspace` literally; replace it if the pipeline runs with another catalog.\n",
+        "SELECT\n",
+        "  ticker,\n",
+        "  year,\n",
+        "  yearly_return,\n",
+        "  n_sessions,\n",
+        "  is_partial,\n",
+        "  CAST(year AS STRING) || CASE WHEN is_partial THEN ' (partial)' ELSE '' END AS year_label\n",
+        "FROM workspace.gold.fact_yearly_metrics\n",
+        "ORDER BY ticker, year\n"
+      ]
+    }
+  ],
+  "pages": [
+    {
+      "name": "79cbc276",
+      "displayName": "Performance and Risk",
+      "layout": [
+        {
+          "widget": {
+            "name": "896ae523",
+            "multilineTextboxSpec": {
+              "lines": [
+                "# Indonesian Bank Stocks - Performance and Risk\n",
+                "\n",
+                "Descriptive comparison of BBCA, BBNI, BMRI and BBRI since 2019 - not investment advice.<br>**Data snapshot:** see `last_trade_date` and `source_run_id` in the summary table.<br>**Definitions:** total return uses `adjclose` (adjusted for dividends and corporate actions) · volatility = 60-session rolling standard deviation of daily returns × √252 · drawdown = decline from the running peak · partial periods are flagged · zero-volume rows are excluded from return statistics."
+              ],
+              "verticalAlign": "VERTICAL_ALIGN_CENTER"
+            }
+          },
+          "position": {
+            "x": 0,
+            "y": 0,
+            "width": 12,
+            "height": 3
+          }
+        },
+        {
+          "widget": {
+            "name": "ticker",
+            "queries": [
+              {
+                "name": "dashboards/01f1c4839fd01f2f9ee23c8ece8c56b8/datasets/01f1c484025c11c4a8571b17aab8046e_ticker",
+                "query": {
+                  "datasetName": "57dcbdc8",
+                  "fields": [
+                    {
+                      "name": "ticker",
+                      "expression": "`ticker`"
+                    },
+                    {
+                      "name": "ticker_associativity",
+                      "expression": "COUNT_IF(`associative_filter_predicate_group`)"
+                    }
+                  ],
+                  "disaggregated": false
+                }
+              },
+              {
+                "name": "dashboards/01f1c4839fd01f2f9ee23c8ece8c56b8/datasets/01f1c4845cfe109caf7858b6475a0861_ticker",
+                "query": {
+                  "datasetName": "77a6ff5e",
+                  "fields": [
+                    {
+                      "name": "ticker",
+                      "expression": "`ticker`"
+                    },
+                    {
+                      "name": "ticker_associativity",
+                      "expression": "COUNT_IF(`associative_filter_predicate_group`)"
+                    }
+                  ],
+                  "disaggregated": false
+                }
+              },
+              {
+                "name": "dashboards/01f1c4839fd01f2f9ee23c8ece8c56b8/datasets/01f1c4849223113c8852848ef688fb43_ticker",
+                "query": {
+                  "datasetName": "0aa7ebe5",
+                  "fields": [
+                    {
+                      "name": "ticker",
+                      "expression": "`ticker`"
+                    },
+                    {
+                      "name": "ticker_associativity",
+                      "expression": "COUNT_IF(`associative_filter_predicate_group`)"
+                    }
+                  ],
+                  "disaggregated": false
+                }
+              },
+              {
+                "name": "dashboards/01f1c4839fd01f2f9ee23c8ece8c56b8/datasets/01f1c484b0cd1555a5dde1e459a30b20_ticker",
+                "query": {
+                  "datasetName": "c633b0c4",
+                  "fields": [
+                    {
+                      "name": "ticker",
+                      "expression": "`ticker`"
+                    },
+                    {
+                      "name": "ticker_associativity",
+                      "expression": "COUNT_IF(`associative_filter_predicate_group`)"
+                    }
+                  ],
+                  "disaggregated": false
+                }
+              }
+            ],
+            "spec": {
+              "version": 2,
+              "frame": {
+                "showTitle": true,
+                "showDescription": false,
+                "title": {
+                  "value": "Ticker",
+                  "fields": []
+                }
+              },
+              "widgetType": "filter-multi-select",
+              "encodings": {
+                "fields": [
+                  {
+                    "fieldName": "ticker",
+                    "queryName": "dashboards/01f1c4839fd01f2f9ee23c8ece8c56b8/datasets/01f1c484025c11c4a8571b17aab8046e_ticker"
+                  },
+                  {
+                    "fieldName": "ticker",
+                    "queryName": "dashboards/01f1c4839fd01f2f9ee23c8ece8c56b8/datasets/01f1c4845cfe109caf7858b6475a0861_ticker"
+                  },
+                  {
+                    "fieldName": "ticker",
+                    "queryName": "dashboards/01f1c4839fd01f2f9ee23c8ece8c56b8/datasets/01f1c4849223113c8852848ef688fb43_ticker"
+                  },
+                  {
+                    "fieldName": "ticker",
+                    "queryName": "dashboards/01f1c4839fd01f2f9ee23c8ece8c56b8/datasets/01f1c484b0cd1555a5dde1e459a30b20_ticker"
+                  }
+                ]
+              }
+            }
+          },
+          "position": {
+            "x": 0,
+            "y": 3,
+            "width": 2,
+            "height": 3
+          }
+        },
+        {
+          "widget": {
+            "name": "trade-date",
+            "queries": [
+              {
+                "name": "dashboards/01f1c4839fd01f2f9ee23c8ece8c56b8/datasets/01f1c4845cfe109caf7858b6475a0861_trade_date",
+                "query": {
+                  "datasetName": "77a6ff5e",
+                  "fields": [
+                    {
+                      "name": "trade_date",
+                      "expression": "`trade_date`"
+                    },
+                    {
+                      "name": "trade_date_associativity",
+                      "expression": "COUNT_IF(`associative_filter_predicate_group`)"
+                    }
+                  ],
+                  "disaggregated": false
+                }
+              }
+            ],
+            "spec": {
+              "version": 2,
+              "selection": {
+                "defaultSelection": {
+                  "operator": {
+                    "operator": "AND",
+                    "args": []
+                  }
+                }
+              },
+              "frame": {
+                "showTitle": true,
+                "showDescription": true,
+                "title": {
+                  "value": "Trade date\n<p>&nbsp;</p>\n",
+                  "fields": []
+                },
+                "description": {
+                  "value": "Applies to V3, V4, V6 only. Full-period KPIs (V1, V2, V5) and calendar-year returns (V7) do not change with this filter.",
+                  "fields": []
+                }
+              },
+              "widgetType": "filter-date-range-picker",
+              "encodings": {
+                "fields": [
+                  {
+                    "fieldName": "trade_date",
+                    "queryName": "dashboards/01f1c4839fd01f2f9ee23c8ece8c56b8/datasets/01f1c4845cfe109caf7858b6475a0861_trade_date"
+                  }
+                ]
+              }
+            }
+          },
+          "position": {
+            "x": 2,
+            "y": 3,
+            "width": 5,
+            "height": 3
+          }
+        },
+        {
+          "widget": {
+            "name": "month",
+            "queries": [
+              {
+                "name": "dashboards/01f1c4839fd01f2f9ee23c8ece8c56b8/datasets/01f1c4849223113c8852848ef688fb43_month_start",
+                "query": {
+                  "datasetName": "0aa7ebe5",
+                  "fields": [
+                    {
+                      "name": "month_start",
+                      "expression": "`month_start`"
+                    },
+                    {
+                      "name": "month_start_associativity",
+                      "expression": "COUNT_IF(`associative_filter_predicate_group`)"
+                    }
+                  ],
+                  "disaggregated": false
+                }
+              }
+            ],
+            "spec": {
+              "version": 2,
+              "frame": {
+                "showTitle": true,
+                "showDescription": true,
+                "title": {
+                  "value": "Month",
+                  "fields": []
+                },
+                "description": {
+                  "value": "Applies to V8, V9 only. Filters on month\\_start (first day of each month). Full-period KPIs (V1, V2, V5) and calendar-year returns (V7) do not change with this filter.",
+                  "fields": []
+                }
+              },
+              "widgetType": "filter-date-range-picker",
+              "encodings": {
+                "fields": [
+                  {
+                    "fieldName": "month_start",
+                    "queryName": "dashboards/01f1c4839fd01f2f9ee23c8ece8c56b8/datasets/01f1c4849223113c8852848ef688fb43_month_start"
+                  }
+                ]
+              }
+            }
+          },
+          "position": {
+            "x": 7,
+            "y": 3,
+            "width": 5,
+            "height": 3
+          }
+        },
+        {
+          "widget": {
+            "name": "full-period-summary",
+            "queries": [
+              {
+                "name": "main_query",
+                "query": {
+                  "datasetName": "57dcbdc8",
+                  "fields": [
+                    {
+                      "name": "short_name",
+                      "expression": "`short_name`"
+                    },
+                    {
+                      "name": "total_return",
+                      "expression": "`total_return`"
+                    },
+                    {
+                      "name": "vol_full_ann",
+                      "expression": "`vol_full_ann`"
+                    },
+                    {
+                      "name": "max_drawdown",
+                      "expression": "`max_drawdown`"
+                    },
+                    {
+                      "name": "peak_date",
+                      "expression": "`peak_date`"
+                    },
+                    {
+                      "name": "trough_date",
+                      "expression": "`trough_date`"
+                    },
+                    {
+                      "name": "current_drawdown",
+                      "expression": "`current_drawdown`"
+                    },
+                    {
+                      "name": "last_trade_date",
+                      "expression": "`last_trade_date`"
+                    },
+                    {
+                      "name": "source_run_id",
+                      "expression": "`source_run_id`"
+                    }
+                  ],
+                  "disaggregated": true
+                }
+              }
+            ],
+            "spec": {
+              "frame": {
+                "showTitle": true,
+                "title": {
+                  "value": "Full-period summary",
+                  "fields": []
+                }
+              },
+              "version": 2,
+              "widgetType": "table",
+              "encodings": {
+                "columns": [
+                  {
+                    "fieldName": "short_name",
+                    "displayName": "Bank"
+                  },
+                  {
+                    "fieldName": "total_return",
+                    "format": {
+                      "type": "number-percent",
+                      "decimalPlaces": {
+                        "type": "exact",
+                        "places": 2
+                      },
+                      "hideGroupSeparator": true
+                    },
+                    "displayName": "Total return"
+                  },
+                  {
+                    "fieldName": "vol_full_ann",
+                    "format": {
+                      "type": "number-percent",
+                      "decimalPlaces": {
+                        "type": "exact",
+                        "places": 2
+                      },
+                      "hideGroupSeparator": true
+                    },
+                    "displayName": "Volatility (ann.)"
+                  },
+                  {
+                    "fieldName": "max_drawdown",
+                    "format": {
+                      "type": "number-percent",
+                      "decimalPlaces": {
+                        "type": "exact",
+                        "places": 2
+                      },
+                      "hideGroupSeparator": true
+                    },
+                    "displayName": "Max drawdown"
+                  },
+                  {
+                    "fieldName": "peak_date",
+                    "format": {
+                      "type": "date",
+                      "date": "year-week",
+                      "leadingZeros": true
+                    },
+                    "displayName": "Peak date"
+                  },
+                  {
+                    "fieldName": "trough_date",
+                    "format": {
+                      "type": "date",
+                      "date": "year-week",
+                      "leadingZeros": true
+                    },
+                    "displayName": "Trough date"
+                  },
+                  {
+                    "fieldName": "current_drawdown",
+                    "format": {
+                      "type": "number-percent",
+                      "decimalPlaces": {
+                        "type": "exact",
+                        "places": 2
+                      },
+                      "hideGroupSeparator": true
+                    },
+                    "displayName": "Current drawdown"
+                  },
+                  {
+                    "fieldName": "last_trade_date",
+                    "format": {
+                      "type": "date",
+                      "date": "year-week",
+                      "leadingZeros": true
+                    },
+                    "displayName": "Last trade date"
+                  },
+                  {
+                    "fieldName": "source_run_id",
+                    "displayName": "Source run ID"
+                  }
+                ]
+              },
+              "data": {
+                "queryName": "main_query"
+              }
+            }
+          },
+          "position": {
+            "x": 0,
+            "y": 6,
+            "width": 12,
+            "height": 4
+          }
+        },
+        {
+          "widget": {
+            "name": "total-return-since-2019-01-02",
+            "queries": [
+              {
+                "name": "main_query",
+                "query": {
+                  "datasetName": "57dcbdc8",
+                  "fields": [
+                    {
+                      "name": "short_name",
+                      "expression": "`short_name`"
+                    },
+                    {
+                      "name": "total_return",
+                      "expression": "`total_return`"
+                    }
+                  ],
+                  "disaggregated": true
+                }
+              }
+            ],
+            "spec": {
+              "frame": {
+                "showTitle": true,
+                "title": {
+                  "value": "Total return since 2019-01-02",
+                  "fields": []
+                }
+              },
+              "version": 3,
+              "widgetType": "bar",
+              "encodings": {
+                "x": {
+                  "fieldName": "short_name",
+                  "axis": {
+                    "title": "Bank"
+                  },
+                  "scale": {
+                    "type": "categorical",
+                    "sort": {
+                      "by": "y-reversed"
+                    }
+                  }
+                },
+                "y": {
+                  "fieldName": "total_return",
+                  "format": {
+                    "type": "number-percent",
+                    "decimalPlaces": {
+                      "type": "exact",
+                      "places": 2
+                    }
+                  },
+                  "axis": {
+                    "title": "Total return"
+                  },
+                  "scale": {
+                    "type": "quantitative"
+                  }
+                }
+              },
+              "data": {
+                "queryName": "main_query"
+              }
+            }
+          },
+          "position": {
+            "x": 0,
+            "y": 10,
+            "width": 6,
+            "height": 6
+          }
+        },
+        {
+          "widget": {
+            "name": "5161ecb7",
+            "queries": [
+              {
+                "name": "main_query",
+                "query": {
+                  "datasetName": "57dcbdc8",
+                  "fields": [
+                    {
+                      "name": "short_name",
+                      "expression": "`short_name`"
+                    },
+                    {
+                      "name": "vol_full_ann",
+                      "expression": "`vol_full_ann`"
+                    }
+                  ],
+                  "disaggregated": true
+                }
+              }
+            ],
+            "spec": {
+              "frame": {
+                "showTitle": true,
+                "title": {
+                  "value": "Full-period volatility (annualized)",
+                  "fields": []
+                }
+              },
+              "version": 3,
+              "widgetType": "bar",
+              "encodings": {
+                "x": {
+                  "fieldName": "short_name",
+                  "axis": {
+                    "title": "Bank"
+                  },
+                  "scale": {
+                    "type": "categorical",
+                    "sort": {
+                      "by": "y-reversed"
+                    }
+                  }
+                },
+                "y": {
+                  "fieldName": "vol_full_ann",
+                  "format": {
+                    "type": "number-percent",
+                    "decimalPlaces": {
+                      "type": "exact",
+                      "places": 2
+                    }
+                  },
+                  "axis": {
+                    "title": "Volatility (ann.)"
+                  },
+                  "displayName": "Volatility (ann.)",
+                  "scale": {
+                    "type": "quantitative"
+                  }
+                }
+              },
+              "data": {
+                "queryName": "main_query"
+              }
+            }
+          },
+          "position": {
+            "x": 6,
+            "y": 10,
+            "width": 6,
+            "height": 6
+          }
+        },
+        {
+          "widget": {
+            "name": "normalized-price-index-base-100-2019-01-02",
+            "queries": [
+              {
+                "name": "main_query",
+                "query": {
+                  "datasetName": "77a6ff5e",
+                  "fields": [
+                    {
+                      "name": "ticker",
+                      "expression": "`ticker`"
+                    },
+                    {
+                      "name": "trade_date",
+                      "expression": "`trade_date`"
+                    },
+                    {
+                      "name": "normalized_index",
+                      "expression": "`normalized_index`"
+                    }
+                  ],
+                  "disaggregated": true
+                }
+              }
+            ],
+            "spec": {
+              "frame": {
+                "showTitle": true,
+                "showDescription": true,
+                "title": {
+                  "value": "Normalized price index (base 100 = 2019-01-02)",
+                  "fields": []
+                },
+                "description": {
+                  "value": "Base 100 = 2019-01-02; not rebased to the filter start.",
+                  "fields": []
+                }
+              },
+              "version": 3,
+              "widgetType": "line",
+              "encodings": {
+                "x": {
+                  "fieldName": "trade_date",
+                  "axis": {
+                    "title": "Trade date"
+                  },
+                  "format": {
+                    "type": "date",
+                    "date": "year-month-day",
+                    "leadingZeros": true
+                  },
+                  "scale": {
+                    "type": "temporal"
+                  }
+                },
+                "y": {
+                  "fieldName": "normalized_index",
+                  "axis": {
+                    "title": "Normalized index"
+                  },
+                  "format": {
+                    "type": "number-plain",
+                    "abbreviation": "compact",
+                    "decimalPlaces": {
+                      "type": "exact",
+                      "places": 2
+                    },
+                    "significantFigures": {
+                      "type": "all"
+                    }
+                  },
+                  "displayName": "Normalized index",
+                  "scale": {
+                    "type": "quantitative"
+                  }
+                },
+                "color": {
+                  "fieldName": "ticker",
+                  "displayName": "Ticker",
+                  "scale": {
+                    "type": "categorical",
+                    "mappings": [
+                      {
+                        "value": "BBCA",
+                        "color": {
+                          "themeColorType": "visualizationColors",
+                          "position": 5
+                        }
+                      },
+                      {
+                        "value": "BBNI",
+                        "color": {
+                          "themeColorType": "visualizationColors",
+                          "position": 2
+                        }
+                      },
+                      {
+                        "value": "BBRI",
+                        "color": {
+                          "themeColorType": "visualizationColors",
+                          "position": 3
+                        }
+                      },
+                      {
+                        "value": "BMRI",
+                        "color": {
+                          "themeColorType": "visualizationColors",
+                          "position": 4
+                        }
+                      }
+                    ]
+                  }
+                }
+              },
+              "data": {
+                "queryName": "main_query"
+              }
+            }
+          },
+          "position": {
+            "x": 0,
+            "y": 16,
+            "width": 12,
+            "height": 6
+          }
+        },
+        {
+          "widget": {
+            "name": "c6a7b05f",
+            "queries": [
+              {
+                "name": "main_query",
+                "query": {
+                  "datasetName": "77a6ff5e",
+                  "fields": [
+                    {
+                      "name": "ticker",
+                      "expression": "`ticker`"
+                    },
+                    {
+                      "name": "trade_date",
+                      "expression": "`trade_date`"
+                    },
+                    {
+                      "name": "vol_60d_ann",
+                      "expression": "`vol_60d_ann`"
+                    }
+                  ],
+                  "disaggregated": true
+                }
+              }
+            ],
+            "spec": {
+              "frame": {
+                "showTitle": true,
+                "showDescription": true,
+                "title": {
+                  "value": "Rolling volatility (60 sessions, annualized)",
+                  "fields": []
+                },
+                "description": {
+                  "value": "Gaps = zero-volume days (holidays, vendor gaps) excluded from return statistics.",
+                  "fields": []
+                }
+              },
+              "version": 3,
+              "widgetType": "line",
+              "encodings": {
+                "x": {
+                  "fieldName": "trade_date",
+                  "axis": {
+                    "title": "Trade date"
+                  },
+                  "format": {
+                    "type": "date",
+                    "date": "year-month-day",
+                    "leadingZeros": true
+                  },
+                  "scale": {
+                    "type": "temporal"
+                  }
+                },
+                "y": {
+                  "fieldName": "vol_60d_ann",
+                  "axis": {
+                    "title": "Volatility (60d, ann.)"
+                  },
+                  "format": {
+                    "type": "number-percent",
+                    "decimalPlaces": {
+                      "type": "exact",
+                      "places": 2
+                    },
+                    "significantFigures": {
+                      "type": "all"
+                    }
+                  },
+                  "displayName": "Volatility (60d, ann.)",
+                  "scale": {
+                    "type": "quantitative"
+                  }
+                },
+                "color": {
+                  "fieldName": "ticker",
+                  "displayName": "Ticker",
+                  "scale": {
+                    "type": "categorical",
+                    "mappings": [
+                      {
+                        "value": "BBCA",
+                        "color": {
+                          "themeColorType": "visualizationColors",
+                          "position": 5
+                        }
+                      },
+                      {
+                        "value": "BBNI",
+                        "color": {
+                          "themeColorType": "visualizationColors",
+                          "position": 2
+                        }
+                      },
+                      {
+                        "value": "BBRI",
+                        "color": {
+                          "themeColorType": "visualizationColors",
+                          "position": 3
+                        }
+                      },
+                      {
+                        "value": "BMRI",
+                        "color": {
+                          "themeColorType": "visualizationColors",
+                          "position": 4
+                        }
+                      }
+                    ]
+                  }
+                }
+              },
+              "data": {
+                "queryName": "main_query"
+              }
+            }
+          },
+          "position": {
+            "x": 0,
+            "y": 22,
+            "width": 6,
+            "height": 6
+          }
+        },
+        {
+          "widget": {
+            "name": "5435984c",
+            "queries": [
+              {
+                "name": "main_query",
+                "query": {
+                  "datasetName": "77a6ff5e",
+                  "fields": [
+                    {
+                      "name": "ticker",
+                      "expression": "`ticker`"
+                    },
+                    {
+                      "name": "trade_date",
+                      "expression": "`trade_date`"
+                    },
+                    {
+                      "name": "drawdown",
+                      "expression": "`drawdown`"
+                    }
+                  ],
+                  "disaggregated": true
+                }
+              }
+            ],
+            "spec": {
+              "frame": {
+                "showTitle": true,
+                "showDescription": true,
+                "title": {
+                  "value": "Drawdown from running peak",
+                  "fields": []
+                },
+                "description": {
+                  "value": "Decline from the running peak since 2019-01-02; not reset to the filter start. Values are ≤ 0.",
+                  "fields": []
+                }
+              },
+              "version": 3,
+              "widgetType": "line",
+              "encodings": {
+                "x": {
+                  "fieldName": "trade_date",
+                  "axis": {
+                    "title": "Trade date"
+                  },
+                  "format": {
+                    "type": "date",
+                    "date": "year-month-day",
+                    "leadingZeros": true
+                  },
+                  "scale": {
+                    "type": "temporal"
+                  }
+                },
+                "y": {
+                  "fieldName": "drawdown",
+                  "axis": {
+                    "title": "Drawdown"
+                  },
+                  "format": {
+                    "type": "number-percent",
+                    "decimalPlaces": {
+                      "type": "exact",
+                      "places": 2
+                    },
+                    "significantFigures": {
+                      "type": "all"
+                    }
+                  },
+                  "displayName": "Drawdown",
+                  "scale": {
+                    "type": "quantitative"
+                  }
+                },
+                "color": {
+                  "fieldName": "ticker",
+                  "displayName": "Ticker",
+                  "scale": {
+                    "type": "categorical",
+                    "mappings": [
+                      {
+                        "value": "BBCA",
+                        "color": {
+                          "themeColorType": "visualizationColors",
+                          "position": 5
+                        }
+                      },
+                      {
+                        "value": "BBNI",
+                        "color": {
+                          "themeColorType": "visualizationColors",
+                          "position": 2
+                        }
+                      },
+                      {
+                        "value": "BBRI",
+                        "color": {
+                          "themeColorType": "visualizationColors",
+                          "position": 3
+                        }
+                      },
+                      {
+                        "value": "BMRI",
+                        "color": {
+                          "themeColorType": "visualizationColors",
+                          "position": 4
+                        }
+                      }
+                    ]
+                  }
+                }
+              },
+              "data": {
+                "queryName": "main_query"
+              }
+            }
+          },
+          "position": {
+            "x": 6,
+            "y": 22,
+            "width": 6,
+            "height": 6
+          }
+        },
+        {
+          "widget": {
+            "name": "calendar-year-return",
+            "queries": [
+              {
+                "name": "main_query",
+                "query": {
+                  "datasetName": "c633b0c4",
+                  "fields": [
+                    {
+                      "name": "ticker",
+                      "expression": "`ticker`"
+                    },
+                    {
+                      "name": "year_label",
+                      "expression": "`year_label`"
+                    },
+                    {
+                      "name": "yearly_return",
+                      "expression": "`yearly_return`"
+                    }
+                  ],
+                  "disaggregated": true
+                }
+              }
+            ],
+            "spec": {
+              "frame": {
+                "showTitle": true,
+                "title": {
+                  "value": "Calendar-year return",
+                  "fields": []
+                }
+              },
+              "version": 3,
+              "mark": {
+                "layout": "group"
+              },
+              "widgetType": "bar",
+              "encodings": {
+                "x": {
+                  "fieldName": "year_label",
+                  "axis": {
+                    "title": "Year",
+                    "labelAngle": 90
+                  },
+                  "scale": {
+                    "type": "categorical"
+                  }
+                },
+                "y": {
+                  "fieldName": "yearly_return",
+                  "format": {
+                    "type": "number-percent",
+                    "decimalPlaces": {
+                      "type": "exact",
+                      "places": 2
+                    }
+                  },
+                  "displayName": "Calendar-year return",
+                  "scale": {
+                    "type": "quantitative"
+                  }
+                },
+                "color": {
+                  "fieldName": "ticker",
+                  "displayName": "Ticker",
+                  "scale": {
+                    "type": "categorical",
+                    "mappings": [
+                      {
+                        "value": "BBCA",
+                        "color": {
+                          "themeColorType": "visualizationColors",
+                          "position": 5
+                        }
+                      },
+                      {
+                        "value": "BBNI",
+                        "color": {
+                          "themeColorType": "visualizationColors",
+                          "position": 2
+                        }
+                      },
+                      {
+                        "value": "BBRI",
+                        "color": {
+                          "themeColorType": "visualizationColors",
+                          "position": 3
+                        }
+                      },
+                      {
+                        "value": "BMRI",
+                        "color": {
+                          "themeColorType": "visualizationColors",
+                          "position": 4
+                        }
+                      }
+                    ]
+                  }
+                }
+              },
+              "data": {
+                "queryName": "main_query"
+              }
+            }
+          },
+          "position": {
+            "x": 0,
+            "y": 28,
+            "width": 6,
+            "height": 6
+          }
+        },
+        {
+          "widget": {
+            "name": "monthly-return",
+            "queries": [
+              {
+                "name": "main_query",
+                "query": {
+                  "datasetName": "0aa7ebe5",
+                  "fields": [
+                    {
+                      "name": "month_start",
+                      "expression": "`month_start`"
+                    },
+                    {
+                      "name": "is_partial",
+                      "expression": "`is_partial`"
+                    },
+                    {
+                      "name": "ticker",
+                      "expression": "`ticker`"
+                    },
+                    {
+                      "name": "monthly_return",
+                      "expression": "`monthly_return`"
+                    }
+                  ],
+                  "cubeGroupingSets": {
+                    "sets": [
+                      {
+                        "fieldNames": [
+                          "month_start",
+                          "is_partial"
+                        ]
+                      },
+                      {
+                        "fieldNames": [
+                          "ticker"
+                        ]
+                      }
+                    ]
+                  },
+                  "disaggregated": true,
+                  "orders": [
+                    {
+                      "direction": "ASC",
+                      "expression": "`month_start`"
+                    },
+                    {
+                      "direction": "ASC",
+                      "expression": "`is_partial`"
+                    },
+                    {
+                      "direction": "ASC",
+                      "expression": "`ticker`"
+                    }
+                  ]
+                }
+              }
+            ],
+            "spec": {
+              "frame": {
+                "showTitle": true,
+                "title": {
+                  "value": "Monthly return",
+                  "fields": []
+                }
+              },
+              "version": 4,
+              "widgetType": "pivot",
+              "encodings": {
+                "rows": {
+                  "fields": [
+                    {
+                      "fieldName": "month_start",
+                      "format": {
+                        "type": "date",
+                        "date": "year-week",
+                        "leadingZeros": true
+                      },
+                      "displayName": "Month",
+                      "scale": {
+                        "type": "categorical"
+                      }
+                    },
+                    {
+                      "fieldName": "is_partial",
+                      "displayName": "Partial",
+                      "scale": {
+                        "type": "categorical"
+                      }
+                    }
+                  ]
+                },
+                "columns": {
+                  "fields": [
+                    {
+                      "fieldName": "ticker",
+                      "displayName": "Ticker",
+                      "scale": {
+                        "type": "categorical"
+                      }
+                    }
+                  ]
+                },
+                "cells": {
+                  "fields": [
+                    {
+                      "fieldName": "monthly_return",
+                      "format": {
+                        "type": "number-percent",
+                        "decimalPlaces": {
+                          "type": "exact",
+                          "places": 2
+                        },
+                        "hideGroupSeparator": true
+                      },
+                      "displayName": "Monthly return",
+                      "cellType": "text"
+                    }
+                  ],
+                  "displayAs": "rows"
+                }
+              },
+              "data": {
+                "queryName": "main_query"
+              }
+            }
+          },
+          "position": {
+            "x": 6,
+            "y": 28,
+            "width": 6,
+            "height": 6
+          }
+        },
+        {
+          "widget": {
+            "name": "average-daily-volume-per-month",
+            "queries": [
+              {
+                "name": "main_query",
+                "query": {
+                  "datasetName": "0aa7ebe5",
+                  "fields": [
+                    {
+                      "name": "ticker",
+                      "expression": "`ticker`"
+                    },
+                    {
+                      "name": "month_start",
+                      "expression": "`month_start`"
+                    },
+                    {
+                      "name": "avg_daily_volume",
+                      "expression": "`avg_daily_volume`"
+                    }
+                  ],
+                  "disaggregated": true
+                }
+              }
+            ],
+            "spec": {
+              "frame": {
+                "showTitle": true,
+                "showDescription": true,
+                "title": {
+                  "value": "Average daily volume per month",
+                  "fields": []
+                },
+                "description": {
+                  "value": "Compare each bank with itself over time, not levels across banks (share counts differ).",
+                  "fields": []
+                }
+              },
+              "version": 3,
+              "widgetType": "line",
+              "encodings": {
+                "x": {
+                  "fieldName": "month_start",
+                  "format": {
+                    "type": "date",
+                    "date": "year-month-day",
+                    "leadingZeros": true
+                  },
+                  "displayName": "Month",
+                  "scale": {
+                    "type": "temporal"
+                  }
+                },
+                "y": {
+                  "fieldName": "avg_daily_volume",
+                  "format": {
+                    "type": "number-plain",
+                    "abbreviation": "none",
+                    "decimalPlaces": {
+                      "type": "exact",
+                      "places": 0
+                    }
+                  },
+                  "displayName": "Avg daily volume (shares)",
+                  "scale": {
+                    "type": "quantitative"
+                  }
+                },
+                "color": {
+                  "fieldName": "ticker",
+                  "displayName": "Ticker",
+                  "scale": {
+                    "type": "categorical",
+                    "mappings": [
+                      {
+                        "value": "BBCA",
+                        "color": {
+                          "themeColorType": "visualizationColors",
+                          "position": 5
+                        }
+                      },
+                      {
+                        "value": "BBNI",
+                        "color": {
+                          "themeColorType": "visualizationColors",
+                          "position": 2
+                        }
+                      },
+                      {
+                        "value": "BBRI",
+                        "color": {
+                          "themeColorType": "visualizationColors",
+                          "position": 3
+                        }
+                      },
+                      {
+                        "value": "BMRI",
+                        "color": {
+                          "themeColorType": "visualizationColors",
+                          "position": 4
+                        }
+                      }
+                    ]
+                  }
+                }
+              },
+              "data": {
+                "queryName": "main_query"
+              }
+            }
+          },
+          "position": {
+            "x": 0,
+            "y": 34,
+            "width": 12,
+            "height": 6
+          }
+        },
+        {
+          "widget": {
+            "name": "01e6da8f",
+            "multilineTextboxSpec": {
+              "lines": [
+                "**Metric definitions** (full text: docs/KPI\\_DEFINITIONS.md in the project repository)\n",
+                "\n",
+                "- Total return (K2) = last adjclose / adjclose on the base date (2019-01-02) - 1.\n",
+                "- Volatility (K4/K5) = sample standard deviation of daily returns on normal (traded) sessions × √252; K4 uses the last 60 sessions.\n",
+                "- Drawdown (K6) = adjclose / running peak - 1; max drawdown (K7) is its minimum; peak date = the day the peak was set.\n",
+                "- Monthly / yearly return (K8/K9) = period-end adjclose / previous period-end adjclose - 1; the first period starts at the base date.\n",
+                "- Partial = first period, or the period still running at the snapshot's last trade date."
+              ]
+            }
+          },
+          "position": {
+            "x": 0,
+            "y": 40,
+            "width": 12,
+            "height": 3
+          }
+        }
+      ],
+      "pageType": "PAGE_TYPE_CANVAS",
+      "layoutVersion": "GRID_V1"
+    }
+  ],
+  "uiSettings": {
+    "theme": {
+      "widgetHeaderAlignment": "ALIGNMENT_UNSPECIFIED"
+    },
+    "applyModeEnabled": false
+  }
+}

@@ -137,3 +137,25 @@ SELECT
 FROM s
 CROSS JOIN (SELECT monthly_return FROM workspace.gold.fact_monthly_metrics
             WHERE ticker = 'BMRI' AND month_start = DATE'2020-03-01') g;
+
+-- R-D6  Where is vol_60d_ann NULL after each ticker's warm-up? (owner-added; explains the gaps in V4)
+--       Expected: only flagged rows. zero_all_tickers: 10 rows per ticker (2019-04-03 .. 2019-06-07); zero_partial: BBCA 2 (2020-03-13,
+--       2020-03-16), BBNI 1 (2020-03-13), BMRI 1 (2020-03-16), BBRI 0; normal: 0 rows. Of the 13 zero_all_tickers dates, 2019-01-01 precedes the
+--       base date and 2019-02-05, 2019-03-07 fall inside the 60-session warm-up. Flagged rows have NULL return statistics by design (rule G5).
+WITH first_vol AS (
+  SELECT ticker, MIN(trade_date) AS first_vol_date
+  FROM workspace.gold.fact_daily_metrics
+  WHERE vol_60d_ann IS NOT NULL
+  GROUP BY ticker
+)
+SELECT
+  d.ticker,
+  d.volume_status,
+  COUNT(*)            AS null_vol_rows,
+  MIN(d.trade_date)   AS first_date,
+  MAX(d.trade_date)   AS last_date
+FROM workspace.gold.fact_daily_metrics d
+JOIN first_vol f ON f.ticker = d.ticker
+WHERE d.trade_date > f.first_vol_date AND d.vol_60d_ann IS NULL
+GROUP BY d.ticker, d.volume_status
+ORDER BY d.ticker, d.volume_status;

@@ -2,7 +2,8 @@
 
 > **Status:** owner-approved (DEC-10, 2026-10-09): **in-workspace tests + DQ checks + reconciliation**. Implementation is pending.
 > All "expected" values are predictions derived from `docs/DATASET.md` and `docs/KPI_DEFINITIONS.md`, to be verified on Databricks.
-> The four sections follow the verification concerns in `CLAUDE.md`, which are reported separately.
+> The four sections follow the project's four verification concerns (code correctness, data quality, pipeline execution, business-metric
+> correctness), which are reported separately. Results: [`docs/TEST_RESULTS.md`](TEST_RESULTS.md).
 
 ## 1. Code Correctness (REQ-26, SHOULD)
 
