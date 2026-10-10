@@ -5,6 +5,13 @@ from Kaggle flows through a **Bronze → Silver → Gold** pipeline with data-qu
 rerun and failure/recovery tests, and an **AI/BI dashboard** whose values are reconciled against independent queries. The analysis is
 **descriptive and historical, not investment advice.**
 
+## Demo video
+
+Video: (link to be added)
+
+Interview-style questions and answers: [`docs/INTERVIEW_QA.md`](docs/INTERVIEW_QA.md) · glossary and lessons learned:
+[`docs/LEARNINGS.md`](docs/LEARNINGS.md)
+
 ## Business questions
 
 | ID | Question |
@@ -171,4 +178,6 @@ workspace; they are not credentials, and whether an import assigns new IDs is un
 [`docs/DATASET.md`](docs/DATASET.md) · [`docs/KPI_DEFINITIONS.md`](docs/KPI_DEFINITIONS.md) · [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md) ·
 [`docs/DATA_MODEL.md`](docs/DATA_MODEL.md) · [`docs/DECISIONS.md`](docs/DECISIONS.md) · [`docs/DQ_CATALOG.md`](docs/DQ_CATALOG.md) ·
 [`docs/TEST_STRATEGY.md`](docs/TEST_STRATEGY.md) · [`docs/TEST_RESULTS.md`](docs/TEST_RESULTS.md) · [`docs/RUNBOOK.md`](docs/RUNBOOK.md) ·
-[`docs/LIMITATIONS.md`](docs/LIMITATIONS.md) · [`dashboards/DASHBOARD_SPEC.md`](dashboards/DASHBOARD_SPEC.md)
+[`docs/LIMITATIONS.md`](docs/LIMITATIONS.md) · [`dashboards/DASHBOARD_SPEC.md`](dashboards/DASHBOARD_SPEC.md) ·
+[`docs/REPORT.md`](docs/REPORT.md) · [`docs/DEMO_SCRIPT.md`](docs/DEMO_SCRIPT.md) · [`docs/INTERVIEW_QA.md`](docs/INTERVIEW_QA.md) ·
+[`docs/LEARNINGS.md`](docs/LEARNINGS.md)

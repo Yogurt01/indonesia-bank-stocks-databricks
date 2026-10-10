@@ -41,7 +41,7 @@ base_date 2019-01-02, last_trade_date 2026-10-08. Values ending in "…" were tr
 | BBRI | 0.4301591927421744 | 0.326187784017586… | -0.5243351988752678 | 2020-01-24 | 2020-05-18 | -0.41918132556542265 |
 | BMRI | 0.7596948888403188 | 0.3350570398009743 | -0.5205072369380116 | 2019-07-15 | 2020-05-18 | -0.3335650778338555 |
 
-¹ **Produced by the earlier K7 rule** (latest date ≤ trough with `drawdown = 0`). 2019-04-19 is a `zero_all_tickers` flat row (a non-trading day,
+¹ **Produced by the earlier K7 rule** (latest date ≤ trough with `drawdown = 0`). 2019-04-19 is a `zero_all_tickers` flat row (zero volume for all four banks; likely an exchange holiday, inferred,
 `docs/DATASET.md` §6.3). The rule was changed on 2026-10-10 (**DEC-14**: `peak_date` = the day the peak was set). The value is kept here as recorded;
 the DEC-14 rebuild reports 2019-04-18 (see "DEC-14 rebuild" below, which also lists the BBRI change).
 

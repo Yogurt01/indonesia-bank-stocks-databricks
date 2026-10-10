@@ -39,8 +39,8 @@
   - at most 5 concurrent job tasks;
   - non-commercial use, no SLA;
   - quotas were not measured.
-- **Runtime varies.** Job runs took 3m38s–3m43s, and 5m41s after about 9.5 h idle (likely a serverless cold start, not verified;
-  `docs/evidence/d2-09-failure-test.md`).
+- **Runtime varies.** Job runs took 3m38s–3m50s, and 5m41s after about 9.5 h idle (likely a serverless cold start, not verified;
+  `docs/evidence/d2-09-failure-test.md`, `docs/evidence/d3-07-demo-rehearsal.md`).
 - **Gold writes are atomic per table, not across the five tables.** A failure between table writes can leave tables from different runs until the task
   is rerun (`docs/RUNBOOK.md`).
 - **Single environment.** There is no separate development, test or production; the Job definition in `jobs/` is recreated by hand (no Asset Bundles).

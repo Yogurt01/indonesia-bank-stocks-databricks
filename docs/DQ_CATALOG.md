@@ -44,7 +44,7 @@
 | `silver_flat_rows_adjclose_carried` | WARN | Zero-volume rows carry the previous `adjclose` | Passed (0) | Passed |
 | `silver_zero_partial_count` | WARN | Rows with zero volume on a day other tickers traded (vendor gaps); expected to report the known gaps | Reported 4 (expected) | Reported 4 |
 | `silver_source_ingested_at_parsed` | WARN | `ingested_at_utc` parses as TIMESTAMP | Passed (0) | Passed |
-| `silver_zero_all_tickers_count` | INFO | Rows where no ticker traded (holidays) | 52 | 52 |
+| `silver_zero_all_tickers_count` | INFO | Rows on dates on which all four banks show zero volume (likely exchange holidays; inferred, not checked against the IDX calendar) | 52 | 52 |
 | `silver_base_date` | INFO | Computed base date (first date on which all tickers traded) | 2019-01-02 | Passed (INFO; value not recorded) |
 
 ## Gold (`notebooks/03_gold_build.py`)

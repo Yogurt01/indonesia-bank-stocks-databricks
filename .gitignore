@@ -37,6 +37,9 @@ CLAUDE.md
 PROJECT_PLAN.md
 .claude/
 
+# ===== Owner's private notes (never published) =====
+private/
+
 # ===== Third-party reference docs (not part of this project) =====
 kaggle-cli/
 

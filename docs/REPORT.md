@@ -39,7 +39,8 @@ Source and profile: `docs/DATASET.md`.
   - `adjclose` is rewritten on every refresh;
   - float32 precision;
   - the source weekly and monthly files carry date-label offsets, so the pipeline derives periods from daily data instead;
-  - holidays are represented inconsistently, and there are ticker-specific vendor gaps on 2020-03-13 and 2020-03-16.
+  - 13 dates on which all four banks show zero volume (likely exchange holidays; inferred, not checked against the IDX calendar) appear as flat rows, all in 2019; after mid-2019 such dates are absent from the data;
+  - there are ticker-specific vendor gaps on 2020-03-13 and 2020-03-16.
 
 ## 3. Business questions and KPI definitions
 
@@ -105,11 +106,11 @@ Full catalog: `docs/DQ_CATALOG.md`. There are 30 checks: Bronze 6, Silver 14, Go
 | Layer | Recorded results on normal data | Evidence |
 | ----- | ------------------------------- | -------- |
 | Bronze | 6/6 passed; 4 × 1,887 rows = the source's stated daily rows; 0 rescued rows | `d2-01-bronze.md`, `d2-06-job.md` |
-| Silver | All CRITICAL passed; **quarantine 0 rows**; 7,548 rows = 7,548 distinct keys; `zero_all_tickers` 52 rows (13 holiday dates × 4); **WARN `silver_zero_partial_count` = 4** (BBCA 2020-03-13 and 2020-03-16, BBNI 2020-03-13, BMRI 2020-03-16, all flat at the previous close); base date 2019-01-02 | `d2-03-silver.md`, `d2-06-job.md` |
+| Silver | All CRITICAL passed; **quarantine 0 rows**; 7,548 rows = 7,548 distinct keys; `zero_all_tickers` 52 rows: 13 dates on which all four banks show zero volume (likely exchange holidays; inferred, not checked against the IDX calendar), × 4 banks; **WARN `silver_zero_partial_count` = 4** (BBCA 2020-03-13 and 2020-03-16, BBNI 2020-03-13, BMRI 2020-03-16, all flat at the previous close); base date 2019-01-02 | `d2-03-silver.md`, `d2-06-job.md` |
 | Gold | 10/10 passed; 7,544 daily rows = Silver rows from the base date; 60 leading NULL volatility rows per ticker; 16 partial periods; after DEC-14, every peak date is a normal trading day | `d2-05-gold.md` |
 | Clean state | Identical counts and volume-status counts after rebuilding from empty tables | `d3-04-clean-state.md` |
 
-**Flag, don't delete.** The 4 vendor-gap rows and 52 holiday rows stay in Silver and Gold with their flag. They are excluded from return statistics,
+**Flag, don't delete.** The 4 vendor-gap rows and the 52 all-ticker zero-volume rows stay in Silver and Gold with their flag. They are excluded from return statistics,
 which explains the visible gaps in the rolling-volatility chart (R-D6: NULL volatility after the warm-up occurs only on flagged rows;
 `d3-03-dashboard-reconciliation.md`).
 
@@ -130,8 +131,9 @@ which explains the visible gaps in the rolling-volatility chart (R-D6: NULL vola
   - Recovery run 318690159636842 (a new full run): restored Bronze, with identical KPIs (`d2-09-failure-test.md`).
   - An unplanned misconfiguration (a path typed into the `catalog` parameter) was rejected in `setup` before any SQL ran.
 - **Clean-state run:** all 11 tables dropped, then Job run 994907076175214 rebuilt everything with identical results (`d3-04-clean-state.md`).
-- **Runtimes:** 3m38s–3m43s per full run; 5m41s after about 9.5 h idle (likely a serverless cold start, not verified); 1m45s for the failing run
-  (`d2-06-job.md`, `d2-07-rerun.md`, `d2-09-failure-test.md`).
+- **Runtimes:** 3m38s–3m50s per full run (3m50s: the warm-up run 715316575128346 before the demo rehearsal); 5m41s after about 9.5 h idle (likely
+  a serverless cold start, not verified); 1m45s for the failing run (`d2-06-job.md`, `d2-07-rerun.md`, `d2-09-failure-test.md`,
+  `d3-07-demo-rehearsal.md`).
 
 ## 8. Dashboard overview and key findings
 
@@ -169,6 +171,8 @@ Silver queries: 14/14 match (`d3-03-dashboard-reconciliation.md`).
    comparison, which is why the project uses total return.
 7. **Volatility over time:** the rolling volatility of all four rose sharply in early 2020 (V4, screenshot 04). This is a visual observation; no
    cause is attributed.
+8. **Volume (Q5):** average daily volume per month is shown in V9, where each bank is compared with itself over time. No quantitative volume
+   finding is reported, because no volume values were recorded in the evidence.
 
 ## 9. Testing results and known limitations
 
@@ -179,7 +183,7 @@ Summary of `docs/TEST_RESULTS.md`:
 | Code correctness | Plain-Python tests 14/14 (local); Spark unit tests 42/42 in Databricks (`d2-08-unit-tests.md`); configuration and secrets review clean (`d2-10-config-review.md`) |
 | Data quality | 30 checks in 3 layers; results above (§6) |
 | Pipeline execution | End-to-end run, rerun 9/9 identical, induced failure contained and recovered, clean-state rebuild identical |
-| Business-metric correctness | Silver vs Gold total return abs_diff 0; 14/14 dashboard values match independent queries; yearly returns compound to total return within 3e-16 |
+| Business-metric correctness | Silver vs Gold total return abs_diff 0; 14/14 dashboard values match independent queries; for **BBCA and BBNI** (the two tickers whose yearly rows were all recorded), the yearly returns compound to total return within 3e-16 (agent check, `d2-05-gold.md`); the Gold check `gold_monthly_compounds_to_yearly` (monthly returns compound to the yearly return within 1e-9, every ticker-year of all four tickers) passed in every run whose Gold check results were recorded (`d2-05-gold.md`, `d2-06-job.md`, `d3-04-clean-state.md`) |
 
 **Main limitations** (full list: `docs/LIMITATIONS.md`):
 - no as-traded prices, and the vendor's adjustments are inferred;

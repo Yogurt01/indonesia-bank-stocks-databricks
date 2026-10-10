@@ -138,9 +138,9 @@ all month-ends) for **every** ticker. They have 0 nulls, 0 duplicates and 0 OHLC
    - **Weekly:** a Monday label `D` aggregates the daily rows from `D+1` to `D+7`. Close and volume match **404/404** for every ticker; open matches 390–393. Aligning to `D..D+6` instead matches only 46–70 closes.
    - The likely cause is a time-zone shift in the upstream export **(inferred)**.
 2. **Partial trailing periods (all four).** Weekly `2026-10-05` holds 3 sessions (Oct 6–8). Monthly `2026-09-30` is October 2026 to date (6 sessions).
-3. **Holidays are represented inconsistently.**
+3. **Probable holidays are represented inconsistently.**
    - 13 zero-volume, flat rows in 2019 (2019-01-01, 02-05, 03-07, 04-03, 04-17, 04-19, 05-01, 05-30, 06-03 → 06-07) occur in **all four** tickers. They look like exchange holidays **(inferred)**.
-   - After mid-2019, holidays are simply absent.
+   - After mid-2019, no such all-ticker zero-volume rows occur; holidays then appear to be simply absent **(inferred; not checked against the IDX calendar)**.
 4. **Gaps in individual tickers' data.** There are extra zero-volume, flat rows on **2020-03-13** (BBCA, BBNI) and **2020-03-16** (BBCA, BMRI). On those same dates the other banks show normal volume (for example BBRI 295,725,807 and 196,265,939), so the market was open. These are vendor gaps, not closures. *(This corrects the earlier BBCA-only note, which called them "unexplained".)*
 5. **Prices are retroactively adjusted, and no as-traded price is available.**
    - `close` is back-adjusted for corporate actions: no unadjusted split jump appears (no daily move above 20.5%).

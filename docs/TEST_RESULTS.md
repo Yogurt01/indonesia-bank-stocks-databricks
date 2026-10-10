@@ -32,8 +32,10 @@
 | Misconfiguration guard (unplanned) | Runs 268776281869222 and 844273765778101: a path typed into the `catalog` parameter was rejected in `setup` before any SQL ran; no table changed | `docs/evidence/d2-09-failure-test.md` |
 | Rule-change rebuild | Run 766912259782044 rebuilt Gold with DEC-14; `total_return` unchanged (abs_diff 0) | `docs/evidence/d2-05-gold.md` |
 | Clean-state reproduction | Reset dropped all 11 tables (schemas and landed files kept); Job run 994907076175214 with default parameters rebuilt everything: same row counts (4 × 1,887; Gold 7,544 / 376 / 32 / 4), same volume-status counts, `total_return` Silver = Gold (abs_diff 0) with identical values, identical peak/trough dates, all `sql/validation` expectations met, the dashboard unchanged after refresh | `docs/evidence/d3-04-clean-state.md` |
+| Demo warm-up run | Run 715316575128346 succeeded in 3m50s (`setup` 44s, `bronze_ingest` 45s, `silver_transform` 48s, `gold_build` 1m28s) before the demo rehearsal | `docs/evidence/d3-07-demo-rehearsal.md` |
 
-Observed runtimes: 3m38s–3m39s, 3m43s, 5m41s (the last after about 9.5 h idle, likely a serverless cold start, not verified); failing run 1m45s.
+Observed runtimes: 3m38s–3m39s, 3m43s, 3m50s (warm-up run 715316575128346 before the demo rehearsal, `docs/evidence/d3-07-demo-rehearsal.md`), so the
+normal range is 3m38s–3m50s; 5m41s after about 9.5 h idle (likely a serverless cold start, not verified); failing run 1m45s.
 
 ## 4. Business-metric correctness
 
@@ -43,6 +45,7 @@ Observed runtimes: 3m38s–3m39s, 3m43s, 5m41s (the last after about 9.5 h idle,
 | R-D1 total return, R-D2 max drawdown, R-D3 volatility (Silver vs Gold vs dashboard, 4 tickers each) | 12/12 match; abs_diff 0 | `docs/evidence/d3-03-dashboard-reconciliation.md` |
 | R-D4 BBCA 2022 yearly return (filtered view) | Match (19.38%; abs_diff 0) | same |
 | R-D5 BMRI 2020-03 monthly return | Match (−35.67%; identical digits shown) | same |
-| R-D6 NULL volatility after the warm-up | Only on flagged zero-volume rows (10 holiday rows per ticker, plus 4 vendor-gap rows); 0 normal rows | same |
-| Yearly returns compound to total return | Product of (1 + yearly) − 1 = total return within 3e-16 (BBCA, BBNI; checked by the agent from the recorded numbers) | `docs/evidence/d2-05-gold.md` |
+| R-D6 NULL volatility after the warm-up | Only on flagged zero-volume rows (10 rows per ticker on dates on which all four banks show zero volume, likely exchange holidays (inferred, not checked against the IDX calendar), plus 4 vendor-gap rows); 0 normal rows | same |
+| Yearly returns compound to total return | Product of (1 + yearly) − 1 = total return within 3e-16 (BBCA and BBNI only, the two tickers whose yearly rows were all recorded; checked by the agent from the recorded numbers) | `docs/evidence/d2-05-gold.md` |
+| Monthly returns compound to yearly (Gold check `gold_monthly_compounds_to_yearly`) | Within 1e-9 for every ticker-year of all four tickers; passed in every run whose Gold check results were recorded | `docs/evidence/d2-05-gold.md`, `d2-06-job.md`, `d3-04-clean-state.md` |
 | Dashboard cross-checks | Index = 100 on 2019-01-02 for all four; BBNI drawdown on 2020-03-24 = −66.16% = V1 max drawdown; V2/V5 tooltips match V1 | `docs/evidence/d3-01-dashboard.md` |
