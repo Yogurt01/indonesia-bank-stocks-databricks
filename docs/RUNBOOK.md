@@ -96,6 +96,19 @@ Purpose: show that the whole result can be rebuilt from the landed files alone.
   compute and delays the failure email.
 - Transient platform errors are handled manually with **Repair run**, once the cause is understood.
 
+## Metadata: comments and lineage (REQ-25)
+
+- **Comments** are applied by the `gold_build` task after every successful write (`src/bank_pipeline/comments.py`); the task prints
+  `Applied 53 comment statements to the Gold tables`. If a comment statement fails, the task fails although the Gold data was written completely:
+  rerun the Job (or the `gold_build` task).
+- **View comments:** Catalog Explorer → `workspace` → `gold` → a table → **Overview** (table comment and column descriptions), or run
+  `sql/validation/07_metadata.sql`.
+- **View lineage:** Catalog Explorer → `workspace` → `gold` → `ticker_summary` → **Lineage** tab → lineage graph. The expected graph is
+  `bronze.daily_prices_raw` and `bronze.source_run_summary` → `silver.daily_prices` → `gold.ticker_summary` (the tables each notebook reads; unverified on Free Edition until recorded in
+  `docs/evidence/d3-09-metadata-lineage.md`).
+- **Rerun check:** the comment statements add metadata-only versions (`SET TBLPROPERTIES`, `CHANGE COLUMN`) after each build, which
+  `notebooks/91_rerun_check` skips. Confirm in its output that both compared versions are data writes (`CREATE OR REPLACE TABLE AS SELECT`).
+
 ## Dashboard: refresh and re-create
 
 - **Refresh** after every Job run; the dashboard reads Gold only.

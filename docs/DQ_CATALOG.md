@@ -67,5 +67,5 @@ The Gold checks run on the computed DataFrames before anything is written. In th
 ## Related checks outside the pipeline
 
 - Validation queries: `sql/validation/01_bronze.sql`, `02_silver.sql`, `03_gold.sql` (including G9: every `peak_date` is a normal trading day), and
-  `05_failure_test.sql`.
+  `05_failure_test.sql`; Gold table and column comments (metadata, not a data-quality check): `07_metadata.sql`.
 - Dashboard reconciliation: `sql/validation/06_dashboard_reconciliation.sql` (`docs/evidence/d3-03-dashboard-reconciliation.md`).

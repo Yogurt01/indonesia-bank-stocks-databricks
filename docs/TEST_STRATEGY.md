@@ -14,7 +14,7 @@
 
 | Test file | Runs where | How to run | Covers |
 | --------- | ---------- | ---------- | ------ |
-| `tests/test_pure.py` | Locally (plain Python, no Spark, no data files) | `python tests/test_pure.py` from the repo root; prints PASS/FAIL per test and `PURE TESTS PASS`; exit code 1 on failure | `config` (find_repo_root, load_config overrides, catalog validation incl. the D2-09 misentered path, table_name); `bronze` helpers; `dq` (to_rows, critical_failures, severity validation); `audit` row builder; `fixtures` (line replacement, LF/CRLF, fixture root from the catalog); `rerun` (pick_versions, evaluate) |
+| `tests/test_pure.py` | Locally (plain Python, no Spark, no data files) | `python tests/test_pure.py` from the repo root; prints PASS/FAIL per test and `PURE TESTS PASS`; exit code 1 on failure | `config` (find_repo_root, load_config overrides, catalog validation incl. the D2-09 misentered path, table_name); `bronze` helpers; `dq` (to_rows, critical_failures, severity validation); `audit` row builder; `fixtures` (line replacement, LF/CRLF, fixture root from the catalog); `rerun` (pick_versions incl. skipping the comment versions, evaluate); `reset` (table list, confirmation); `comments` (Gold tables and columns only, every key and lineage column covered, quote escaping, statement count) |
 | `tests/run_unit_tests.py` | Databricks (serverless notebook from the Git folder) | Run the notebook `tests/run_unit_tests`; prints PASS/FAIL per check and `UNIT TESTS PASS`; asserts at the end; writes no table | `silver`: volume_status (2 tickers × 4 days), base_date, reject_reasons (each code plus a valid row), timestamp parsing, duplicate_keys. `gold`: daily_return (NULL on flagged and base rows, computed across a flagged gap), vol with N = 3 (leading NULLs, hand-computed stddev_samp × √A), normalized index, drawdown and running peak, ticker_summary (total return, full volatility, max drawdown with a tie, peak/trough dates per DEC-14 incl. a holiday at the peak and a re-touch of the peak, current drawdown), rel_volume with M = 3 (excludes day t), monthly/yearly returns (first period from the base price, `is_partial` for first, running and complete months, compounding) |
 
 - **K7 `peak_date` (DEC-14, 2026-10-10):** the tests check that `peak_date` is the trading day the peak was set (2020-01-02), not the flat holiday
@@ -75,8 +75,8 @@ Implemented Bronze check names (`notebooks/01_bronze_ingest.py`): `bronze_all_ti
 - **Rerun test (idempotency, D2-07):**
   1. Run the Job twice on the same input.
   2. Run `notebooks/91_rerun_check` (read-only). For each of the 9 Bronze, Silver and Gold tables it uses **Delta time travel** to compare
-     the latest data-writing version with the previous one, and reports which versions were compared. Maintenance versions (OPTIMIZE, VACUUM, …)
-     are skipped; a table without a previous version is SKIPPED, which makes the overall result FAIL.
+     the latest data-writing version with the previous one, and reports which versions were compared. Maintenance and metadata-only versions (OPTIMIZE, VACUUM, …,
+     and the Gold comment statements: SET TBLPROPERTIES, CHANGE COLUMN) are skipped; a table without a previous version is SKIPPED, which makes the overall result FAIL.
   3. Run-specific columns are excluded (`pipeline_run_id`, `bronze_pipeline_run_id`, `bronze_loaded_at`, `processed_at`, `quarantined_at`, `built_at`).
   4. Per table:
      - row counts must be equal;

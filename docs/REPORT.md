@@ -180,7 +180,7 @@ Summary of `docs/TEST_RESULTS.md`:
 
 | Concern | Result |
 | ------- | ------ |
-| Code correctness | Plain-Python tests 14/14 (local); Spark unit tests 42/42 in Databricks (`d2-08-unit-tests.md`); configuration and secrets review clean (`d2-10-config-review.md`) |
+| Code correctness | Plain-Python tests 17/17 (local); Spark unit tests 42/42 in Databricks (`d2-08-unit-tests.md`); configuration and secrets review clean (`d2-10-config-review.md`) |
 | Data quality | 30 checks in 3 layers; results above (§6) |
 | Pipeline execution | End-to-end run, rerun 9/9 identical, induced failure contained and recovered, clean-state rebuild identical |
 | Business-metric correctness | Silver vs Gold total return abs_diff 0; 14/14 dashboard values match independent queries; for **BBCA and BBNI** (the two tickers whose yearly rows were all recorded), the yearly returns compound to total return within 3e-16 (agent check, `d2-05-gold.md`); the Gold check `gold_monthly_compounds_to_yearly` (monthly returns compound to the yearly return within 1e-9, every ticker-year of all four tickers) passed in every run whose Gold check results were recorded (`d2-05-gold.md`, `d2-06-job.md`, `d3-04-clean-state.md`) |

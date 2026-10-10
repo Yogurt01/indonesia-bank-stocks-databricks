@@ -40,7 +40,7 @@ from datetime import datetime, timezone
 
 from pyspark.sql import functions as F
 
-from bank_pipeline import audit, dq, gold, silver
+from bank_pipeline import audit, comments, dq, gold, silver
 
 TASK_NAME = "gold_build"
 LAYER = "gold"
@@ -185,6 +185,14 @@ def run_gold():
     # the Gold tables can briefly come from different runs. Recovery is to rerun this task (full overwrite, DEC-06).
     for name, df in tables.items():
         df.write.mode("overwrite").option("overwriteSchema", "true").saveAsTable(gold_tables[name])
+
+    # Table and column comments (REQ-25). The overwrite is a CREATE OR REPLACE TABLE AS SELECT (Delta history,
+    # docs/evidence/d2-07-rerun.md), which replaces the table definition and drops its comments, so they are reapplied on every
+    # build. A failed statement fails the task: the Gold data written above is complete and consistent, and a rerun reapplies them.
+    comment_sql = comments.comment_statements(cfg)
+    for statement in comment_sql:
+        spark.sql(statement)
+    print(f"Applied {len(comment_sql)} comment statements to the Gold tables")
 
     stats["rows_out"] = spark.table(gold_tables["fact_daily_metrics"]).count()
     stats["rows_rejected"] = 0  # Gold rejects nothing; invalid input is stopped by the checks

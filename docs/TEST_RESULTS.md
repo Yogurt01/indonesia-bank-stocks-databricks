@@ -7,7 +7,7 @@
 
 | Test | Scope | Result | Evidence |
 | ---- | ----- | ------ | -------- |
-| `tests/test_pure.py` (plain Python, local) | config, Bronze helpers, DQ result rows, audit rows, failure fixture, rerun comparison, reset table list | **14/14 passed** (agent run 2026-10-10 evening; 12/12 recorded earlier, before the two reset tests were added) | `docs/evidence/d2-08-unit-tests.md`; run `python tests/test_pure.py` |
+| `tests/test_pure.py` (plain Python, local) | config, Bronze helpers, DQ result rows, audit rows, failure fixture, rerun comparison, reset table list, Gold comment statements | **17/17 passed** (agent run 2026-10-11, after the three comment tests were added; 14/14 on 2026-10-10 evening; 12/12 recorded earlier, before the two reset tests) | `docs/evidence/d2-08-unit-tests.md`; run `python tests/test_pure.py` |
 | `tests/run_unit_tests` (Spark, Databricks) | `silver.py` (volume status, base date, reject reasons, duplicate keys, timestamp parsing) and `gold.py` (returns, volatility, drawdown, peak/trough incl. DEC-14, relative volume, monthly/yearly returns, partial flags) with hand-computed values | **42/42 checks passed, UNIT TESTS PASS** (owner-reported) | `docs/evidence/d2-08-unit-tests.md` |
 | Configuration and secrets review | No hard-coded environment values in code; no secrets, emails or hosts tracked; ignore rules effective | **Clean** | `docs/evidence/d2-10-config-review.md` |
 

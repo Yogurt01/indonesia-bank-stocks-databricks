@@ -4,17 +4,19 @@ pyspark is imported inside the Spark functions; pick_versions and evaluate are p
 """
 from functools import reduce
 
-# Doubles from window aggregations (stddev, avg) can differ in the last bits when Spark changes the evaluation order.
+# Doubles from grouped aggregations (e.g. the full-period stddev) can differ in the last bits when Spark combines partial results in a
+# different order; window functions ordered within a partition are typically stable. The tolerance covers either case.
 DOUBLE_TOLERANCE = 1e-9
 
 # Columns that legitimately change on every run.
 RUN_SPECIFIC_COLUMNS = ("pipeline_run_id", "bronze_pipeline_run_id", "bronze_loaded_at", "processed_at",
                         "quarantined_at", "built_at")
 
-# Maintenance operations (e.g. predictive optimization on Unity Catalog managed tables) create versions without new data.
-# Comparing across them would compare a run with itself and pass trivially, so they are skipped.
+# Maintenance and metadata-only operations (e.g. predictive optimization on Unity Catalog managed tables, or the Gold table and
+# column comments applied after every build, REQ-25) create versions without new data. Comparing across them would compare a run
+# with itself and pass trivially, so they are skipped. CHANGE COLUMN is the expected history name of ALTER COLUMN ... COMMENT (unverified).
 MAINTENANCE_PREFIXES = ("OPTIMIZE", "VACUUM", "ANALYZE", "COMPUTE STATS", "SET TBLPROPERTIES", "UNSET TBLPROPERTIES",
-                        "UPGRADE PROTOCOL", "FSCK", "REORG", "CLONE")
+                        "UPGRADE PROTOCOL", "FSCK", "REORG", "CLONE", "CHANGE COLUMN")
 
 # (layer, table) -> key columns; None = compare row counts only.
 TABLE_KEYS = {

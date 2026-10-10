@@ -50,7 +50,7 @@ Lakeflow Jobs, AI/BI dashboards, Git folders; plain Python for local tests; the 
 
 ```
 config/pipeline.json            single configuration source (catalog, schemas, landing path, tickers, KPI parameters)
-src/bank_pipeline/              transformation and helper functions (config, bronze, silver, gold, dq, audit, rerun, fixtures, reset)
+src/bank_pipeline/              transformation and helper functions (config, bronze, silver, gold, dq, audit, rerun, fixtures, reset, comments)
 notebooks/                      00_setup, 01_bronze_ingest, 02_silver_transform, 03_gold_build (the Job tasks);
                                 10_landing_smoke_test, 90_make_failure_fixture, 91_rerun_check, 95_reset_environment (tools)
 jobs/                           sanitized Job definition (YAML)

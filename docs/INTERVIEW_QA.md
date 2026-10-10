@@ -6,8 +6,8 @@
 ## Design
 
 **1. Why full refresh instead of incremental?**
-Correctness first. The source re-extracts the **full history** on every refresh (`mode: full`), and `adjclose` is rewritten retroactively whenever a
-dividend or corporate action is applied. Appending new rows would therefore mix prices adjusted on different bases into one inconsistent history
+Correctness first. The source re-extracts the **full history** on every refresh (`mode: full`), so `adjclose` is rewritten retroactively whenever a
+dividend or corporate action is applied *(inferred from the full re-extraction; the vendor's adjustment method is not documented)*. Appending new rows would therefore mix prices adjusted on different bases into one inconsistent history
 ([`DATASET.md`](DATASET.md) §6, DEC-06). Size is the secondary reason: 4 × 1,887 rows make a deterministic overwrite cheap. The rerun test confirms
 the result is idempotent: 9/9 tables identical ([`d2-07-rerun.md`](evidence/d2-07-rerun.md)).
 

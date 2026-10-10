@@ -1,6 +1,6 @@
 # Decision Record
 
-> The project's key design decisions, written for a public reader. They were made by the project owner between 2026-10-09 and 2026-10-10. The detailed
+> The project's key design decisions, written for a public reader. They were made by the project owner between 2026-10-09 and 2026-10-11. The detailed
 > planning and tracking file (tasks, statuses, internal notes) is kept private; this file is the public summary. Evidence for every claim is in
 > `docs/evidence/`. Identifiers such as `D2-09` (a task), `REQ-16` (a requirement) or `R-16` (a risk) that appear in other documents refer to
 > entries in that private plan; their meaning is always stated next to them.
@@ -23,3 +23,4 @@
 | DEC-14 | K7 peak date rule | `peak_date` = earliest date (≤ trough) whose `adjclose` equals the running peak at the trough, i.e. **the day the peak was set** | The earlier rule (latest date with drawdown = 0) reported a flat zero-volume row (BBNI 2019-04-19, one of the 13 dates on which all four banks show zero volume; likely an exchange holiday, inferred); verified after the rebuild: every peak date is a normal trading day (`docs/evidence/d2-05-gold.md`) | 2026-10-10 |
 | DEC-15 | Code licence | **MIT** (`LICENSE`) for the code; the market data is not included or redistributed and stays subject to its source's terms | Permissive licence for a public portfolio project; the upstream data terms are unverified (`docs/DATASET.md`) | 2026-10-10 |
 | DEC-16 | Dashboard export | Commit `dashboards/indonesian_bank_stocks.lvdash.json` unedited | It documents the built dashboard exactly; the Databricks object IDs it contains (dashboard and dataset IDs) are not credentials; whether an import assigns new IDs is unverified | 2026-10-10 |
+| DEC-17 | Demo format | A **recorded English video** (≤ 10 minutes) linked from the README, instead of a live demo; it follows `docs/DEMO_SCRIPT.md` | Retakes remove the live-environment risks (serverless cold start, Free Edition quotas), and the video stays useful for the public portfolio | 2026-10-11 |

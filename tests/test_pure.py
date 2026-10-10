@@ -13,7 +13,7 @@ from pathlib import Path
 REPO_ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(REPO_ROOT / "src"))
 
-from bank_pipeline import audit, bronze, config, dq, fixtures, gold, reset, rerun  # noqa: E402
+from bank_pipeline import audit, bronze, comments, config, dq, fixtures, gold, reset, rerun  # noqa: E402
 
 HEADER = "Date,open,high,low,close,adjclose,volume,ingested_at_utc"
 TESTS = []
@@ -152,6 +152,9 @@ def rerun_pick_versions():
     assert rerun.pick_versions([(0, write), (1, write), (2, "OPTIMIZE"), (3, "VACUUM END")]) == (0, 1)
     assert rerun.pick_versions([(7, "WRITE"), (5, "WRITE"), (6, "optimize")]) == (5, 7)
     assert rerun.pick_versions([(0, write)]) == (None, 0) and rerun.pick_versions([]) == (None, None)
+    # Two builds, each followed by its comment statements (REQ-25): compare the two data writes, not a build with itself.
+    build = [write, "SET TBLPROPERTIES", "CHANGE COLUMN", "CHANGE COLUMN"]
+    assert rerun.pick_versions(list(enumerate(build + build))) == (0, 4)
 
 
 @test
@@ -166,6 +169,45 @@ def rerun_evaluate():
         assert rerun.evaluate({**base, key: value}) == "FAIL", key
     assert rerun.evaluate(dict(keys=None, rows_prev=0, rows_latest=0, note="")) == "PASS"
     assert rerun.evaluate(dict(keys=None, rows_prev=0, rows_latest=1, note="")) == "FAIL"
+
+
+# ---- comments (REQ-25) ---------------------------------------------------------------------------------------------
+
+GOLD_COLUMNS = {"dim_ticker": gold.DIM_TICKER_COLUMNS, "fact_daily_metrics": gold.DAILY_COLUMNS,
+                "fact_monthly_metrics": gold.MONTHLY_COLUMNS, "fact_yearly_metrics": gold.YEARLY_COLUMNS,
+                "ticker_summary": gold.SUMMARY_COLUMNS}
+
+
+@test
+def comments_cover_gold_tables_and_columns():
+    assert set(comments.TABLE_COMMENTS) == set(comments.COLUMN_COMMENTS) == set(gold.TABLE_KEYS)
+    for table, cols in comments.COLUMN_COMMENTS.items():
+        assert set(cols) <= set(GOLD_COLUMNS[table]), (table, set(cols) - set(GOLD_COLUMNS[table]))
+        assert set(gold.TABLE_KEYS[table]) <= set(cols), table  # every key column is commented
+        assert set(gold.LINEAGE_COLUMNS) <= set(cols), table  # and every lineage column
+    texts = list(comments.TABLE_COMMENTS.values()) + [t for cols in comments.COLUMN_COMMENTS.values() for t in cols.values()]
+    assert all(t.strip() and t.endswith(".") for t in texts)
+
+
+@test
+def comments_quote_escaping():
+    assert comments.sql_string("plain") == "'plain'"
+    assert comments.sql_string("it's") == "'it\\'s'"
+    assert comments.sql_string("a\\b") == "'a\\\\b'"
+    assert comments.sql_string("x\\'") == "'x\\\\\\''"  # the backslash is escaped first, so it cannot cancel the quote escape
+
+
+@test
+def comments_statements():
+    cfg = config.load_config(REPO_ROOT)
+    stmts = comments.comment_statements(cfg)
+    n_columns = sum(len(cols) for cols in comments.COLUMN_COMMENTS.values())
+    assert n_columns == 48 and len(stmts) == 5 + n_columns == 53
+    assert sum(s.startswith("COMMENT ON TABLE workspace.gold.") for s in stmts) == 5
+    assert sum(s.startswith("ALTER TABLE workspace.gold.") and " ALTER COLUMN `" in s for s in stmts) == n_columns
+    assert "COMMENT ON TABLE workspace.gold.ticker_summary IS 'Full-period KPIs" in "\n".join(stmts)
+    other = comments.comment_statements(config.load_config(REPO_ROOT, {"catalog": "other_cat"}))
+    assert all(".gold." in s and s.split()[3 if s.startswith("COMMENT") else 2].startswith("other_cat.") for s in other)
 
 
 # ---- reset ----------------------------------------------------------------------------------------------------------

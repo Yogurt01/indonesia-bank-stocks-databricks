@@ -105,6 +105,10 @@ One dimension plus four fact tables, each at exactly one grain.
 - **No partitioning or clustering:** 7,544 daily rows in total (4 tickers × 1,886 rows from the base date; `docs/evidence/d2-05-gold.md`), far too small to benefit.
 - **No `dim_date`:** `year` and `month` are columns on the facts.
 - **Column order:** as in the table above (key first, lineage last); implemented in `src/bank_pipeline/gold.py`.
+- **Table and column comments (REQ-25):** applied at build time by `notebooks/03_gold_build.py` after the five tables are written, from
+  `src/bank_pipeline/comments.py` (5 table comments; 48 column comments on the key, KPI and lineage columns). The overwrite replaces the table
+  definition, so the comments are reapplied on every build. The statements create metadata-only Delta versions, which the rerun check skips.
+  Check: `sql/validation/07_metadata.sql`.
 
 ### Implementation rules (`src/bank_pipeline/gold.py`, `notebooks/03_gold_build.py`)
 - **K3, K4, K10 on normal rows only:** computed on the `normal` rows and joined back, so flagged rows get NULL. `daily_return` is NULL on the base

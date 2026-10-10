@@ -21,7 +21,7 @@
 | ---- | ----------------- | ----------------- |
 | Full refresh vs incremental | **Full refresh** rebuilds a table completely from the source on every run; **incremental** processes only new or changed data. This project uses full refresh, because the source republishes its whole history. | DEC-06 in `docs/DECISIONS.md` |
 | Idempotent | Running the same job again on the same input leaves the same result: no duplicates and no changed values. | `docs/evidence/d2-07-rerun.md` (9/9 tables identical) |
-| Deterministic | Same input, same output, every time; there is no dependence on run order, time or randomness. A deterministic overwrite is what makes the reruns idempotent. Overwrite writes (`mode("overwrite")`) in `notebooks/01`–`03` |
+| Deterministic | Same input, same output, every time; there is no dependence on run order, time or randomness. A deterministic overwrite is what makes the reruns idempotent. | Overwrite writes (`mode("overwrite")`) in `notebooks/01`–`03` |
 | Quarantine | A separate table for rows with invalid values. Each row is kept with its original text and a reason code instead of being dropped. | `silver.daily_prices_quarantine`; `silver.reject_reasons` in `src/bank_pipeline/silver.py` |
 | `try_cast` and ANSI mode | In ANSI mode (the serverless default), a plain `CAST` of a bad value raises an error and fails the task. `try_cast` returns NULL instead, so the row can be quarantined with a reason. | `silver.parse_bronze` in `src/bank_pipeline/silver.py` |
 | CRITICAL / WARN / INFO checks | Severity levels of the data-quality checks. **CRITICAL** stops the task before it writes; **WARN** is recorded but does not block; **INFO** only records a count for monitoring. | `docs/DQ_CATALOG.md`; `src/bank_pipeline/dq.py` |
@@ -61,8 +61,8 @@
 2. **Check KPI outputs against the data's own flags.** The first K7 rule (the latest date with drawdown 0) reported BBNI's peak on 2019-04-19, a
    zero-volume flat row that carries the previous price. The rule was changed to "the day the peak was set" (DEC-14), and a validation query (G9) now
    confirms that every peak date is a normal trading day (`docs/evidence/d2-05-gold.md`, "DEC-14 rebuild").
-3. **Know the platform defaults.** Serverless Job tasks have automatic retries enabled by default (owner-reported: 3 retries in the Jobs UI; this
-   is not captured in an evidence file). Here a failure is a deterministic data-quality stop, so a retry would fail again and only delay the
+3. **Know the platform defaults.** Serverless Job tasks have automatic retries enabled by default: before the change, the Jobs UI task settings showed
+   "Immediately, at most 3x (4 total attempts)" (owner-observed, `docs/evidence/d2-06-job.md`). Here a failure is a deterministic data-quality stop, so a retry would fail again and only delay the
    failure email. Retries were disabled on purpose (`disable_auto_optimization: true` in `jobs/indonesia_bank_stocks_pipeline.job.yml`;
    `docs/RUNBOOK.md`, "Why retries are disabled").
 4. **The Job parameters panel changes the saved defaults.** Typing a test path into the `catalog` field saved it for every later run; runs
@@ -75,8 +75,10 @@
    `zero_partial` and excluded from return statistics, and the WARN check reports them on every run. The gaps they leave in the rolling-volatility
    chart are explained by query R-D6 (only flagged rows, no normal row) instead of looking like missing data (`docs/evidence/d2-03-silver.md`,
    `docs/evidence/d3-03-dashboard-reconciliation.md`).
-7. **Floating-point comparisons need a tolerance.** Doubles from window aggregations can differ in the last bits when Spark changes the evaluation
-   order, so the rerun check compares doubles within 1e-9 and everything else exactly (`src/bank_pipeline/rerun.py`). In the recovery check, BBNI showed
+7. **Floating-point comparisons need a tolerance.** Doubles from grouped aggregations (for example the full-period standard deviation) can differ in
+   the last bits between runs, because Spark may combine partial results in a different order. Window functions ordered within a partition are
+   typically stable. The rerun check therefore compares doubles within 1e-9, which guards against either case, and everything else exactly
+   (`src/bank_pipeline/rerun.py`). In the recovery check, BBNI showed
    an abs_diff of 8.3e-17 only because the recorded reference value was truncated (`docs/evidence/d2-09-failure-test.md`).
 8. **Check screenshots and exports before publishing.** All 10 dashboard screenshots were inspected for email addresses, account names, hosts and URLs
    before they were committed, and retaken after the final subtitle edits. The dashboard export was scanned too: it holds Databricks object IDs (not
