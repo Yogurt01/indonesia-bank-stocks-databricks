@@ -93,5 +93,5 @@ Footer text widget:
   (an "Import dashboard from file" option is expected in the Create menu). Afterwards, check that each dataset points to your catalog, then publish.
   If import is not available, rebuild from this guide; the dataset SQL files make that a copy-paste exercise.
 - After a pipeline run, refresh the dashboard. The values must match `docs/evidence/d3-03-dashboard-reconciliation.md` when the data snapshot is unchanged.
-- Screenshots live in `docs/evidence/dashboard/` (`01-…png` to `10-…png`); they predate the final V4/V6 subtitles and will be replaced after the
-  clean-state run.
+- Screenshots live in `docs/evidence/dashboard/` (`01-…png` to `10-…png`); retaken after the clean-state run, they show the final version
+  (`docs/evidence/d3-04-clean-state.md`).

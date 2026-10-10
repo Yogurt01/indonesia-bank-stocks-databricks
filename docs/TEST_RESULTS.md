@@ -31,7 +31,7 @@
 | Recovery | Run 318690159636842 (new full run, default parameters): 3 SUCCEEDED audit rows; Bronze restored (0 duplicates, real files); KPIs identical to before | `docs/evidence/d2-09-failure-test.md` |
 | Misconfiguration guard (unplanned) | Runs 268776281869222 and 844273765778101: a path typed into the `catalog` parameter was rejected in `setup` before any SQL ran; no table changed | `docs/evidence/d2-09-failure-test.md` |
 | Rule-change rebuild | Run 766912259782044 rebuilt Gold with DEC-14; `total_return` unchanged (abs_diff 0) | `docs/evidence/d2-05-gold.md` |
-| Clean-state reproduction | **Not yet run.** Procedure in `docs/RUNBOOK.md` ("Reset for a clean-state run") | — |
+| Clean-state reproduction | Reset dropped all 11 tables (schemas and landed files kept); Job run 994907076175214 with default parameters rebuilt everything: same row counts (4 × 1,887; Gold 7,544 / 376 / 32 / 4), same volume-status counts, `total_return` Silver = Gold (abs_diff 0) with identical values, identical peak/trough dates, all `sql/validation` expectations met, the dashboard unchanged after refresh | `docs/evidence/d3-04-clean-state.md` |
 
 Observed runtimes: 3m38s–3m39s, 3m43s, 5m41s (the last after about 9.5 h idle, likely a serverless cold start, not verified); failing run 1m45s.
 

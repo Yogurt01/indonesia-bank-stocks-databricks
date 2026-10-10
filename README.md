@@ -68,6 +68,10 @@ dashboard ([`docs/evidence/d3-03-dashboard-reconciliation.md`](docs/evidence/d3-
 | BBRI (Bank Rakyat Indonesia) | 43.02% | 32.62% | −52.43% | 2020-01-23 → 2020-05-18 |
 | BMRI (Bank Mandiri) | 75.97% | 33.51% | −52.05% | 2019-07-15 → 2020-05-18 |
 
+![AI/BI dashboard "Indonesian Bank Stocks - Performance and Risk", unfiltered overview](docs/evidence/dashboard/01-unfiltered-overview.png)
+
+*The AI/BI dashboard (all four banks, no filter) after the clean-state rebuild; more views in [`docs/evidence/d3-01-dashboard.md`](docs/evidence/d3-01-dashboard.md).*
+
 ## Reliability highlights
 
 - **Data-quality checks in every layer** (Bronze 6, Silver 14, Gold 10). A failed CRITICAL check stops the task before it writes
@@ -78,6 +82,8 @@ dashboard ([`docs/evidence/d3-03-dashboard-reconciliation.md`](docs/evidence/d3-
   identical KPIs ([`docs/evidence/d2-09-failure-test.md`](docs/evidence/d2-09-failure-test.md)).
 - **Reconciliation:** 14/14 dashboard values match independent queries on Silver
   ([`docs/evidence/d3-03-dashboard-reconciliation.md`](docs/evidence/d3-03-dashboard-reconciliation.md)).
+- **Clean-state reproduction:** after dropping all 11 pipeline tables, one Job run with default parameters rebuilt everything with identical row counts,
+  KPIs and peak/trough dates, and the dashboard showed the same values ([`docs/evidence/d3-04-clean-state.md`](docs/evidence/d3-04-clean-state.md)).
 - **Tests:** plain-Python and Spark unit tests with hand-computed values ([`docs/TEST_RESULTS.md`](docs/TEST_RESULTS.md)).
 
 ## Reproduce it
@@ -131,6 +137,11 @@ dashboard ([`docs/evidence/d3-03-dashboard-reconciliation.md`](docs/evidence/d3-
 
 7. **Create the dashboard** from [`dashboards/DASHBOARD_SPEC.md`](dashboards/DASHBOARD_SPEC.md), using the dataset SQL in `dashboards/datasets/`
    (import from an exported definition is also possible where available; see the spec, §6).
+
+8. **Validate** in the Databricks SQL editor: run `sql/validation/01_bronze.sql`, `02_silver.sql`, `03_gold.sql` and
+   `06_dashboard_reconciliation.sql`, and compare each result with the expected result stated above the query. The expected values are for the
+   2026-10-08 snapshot; a newer Kaggle snapshot changes them (row counts, dates and KPIs), while the structural checks (unique keys, Silver = Gold,
+   abs_diff 0) still apply.
 
 **Clean-state rerun:** run `notebooks/95_reset_environment` with `confirm = RESET`, run the Job, then compare
 `sql/validation/01`–`03` and `06` with the recorded values ([`docs/RUNBOOK.md`](docs/RUNBOOK.md)).

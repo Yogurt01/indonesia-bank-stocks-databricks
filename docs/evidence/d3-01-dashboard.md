@@ -33,12 +33,13 @@
 **Fixed ticker colours** (V3, V4, V6, V7, V9): BBCA `#8BCAE7`, BBNI `#FFAB00`, BBRI `#00A972`, BMRI `#FF3621`. In the export these are fixed
 per-ticker mappings to theme palette positions.
 
-**Subtitle note (agent observation).** The screenshots show the earlier V4 subtitle ("First 60 sessions are empty by definition.") and the earlier V6
-subtitle ("Decline from the running peak; values are ≤ 0."). The exported definition, which is newer, holds:
+**Final subtitles** (in the exported definition and in the retaken screenshots):
 - V4: "Gaps = zero-volume days (holidays, vendor gaps) excluded from return statistics."
 - V6: "Decline from the running peak since 2019-01-02; not reset to the filter start. Values are ≤ 0."
 
-In screenshots 04 and 09, the rotated V7 label "2026 (partial)" is cut at the bottom edge of the panel.
+*History:* the first set of screenshots (taken before the final edits) showed the earlier V4 subtitle ("First 60 sessions are empty by definition."),
+the earlier V6 subtitle ("Decline from the running peak; values are ≤ 0.") and a cut-off "2026 (partial)" label. They were replaced on 2026-10-10 after the
+clean-state run (`docs/evidence/d3-04-clean-state.md`).
 
 ## Filters (page level)
 
@@ -59,7 +60,7 @@ Cross-filtering is left at the default (on for table, pivot and bar).
 
 ## Screenshots
 
-All 10 were checked by the coding agent: none shows an email address, account name, workspace host or URL.
+All 10 (retaken 2026-10-10) were checked by the coding agent: none shows an email address, account name, workspace host or URL.
 
 | File | View |
 | ---- | ---- |
@@ -70,12 +71,13 @@ All 10 were checked by the coding agent: none shows an email address, account na
 | [`05-unfiltered-v9-footer.png`](dashboard/05-unfiltered-v9-footer.png) | V9, footer definitions |
 | [`06-bbca-overview.png`](dashboard/06-bbca-overview.png) | Whole page, ticker = BBCA |
 | [`07-bbca-header-filters-v1.png`](dashboard/07-bbca-header-filters-v1.png) | Header, filters, V1 (BBCA) |
-| [`08-bbca-v2-v5-v3.png`](dashboard/08-bbca-v2-v5-v3.png) | V2, V5, V3 (BBCA) |
-| [`09-bbca-v4-v6-v7-v8.png`](dashboard/09-bbca-v4-v6-v7-v8.png) | V4 (tooltip 2026-07-20: 49.01%), V6, V7, V8 (BBCA) |
+| [`08-bbca-v2-v5-v3.png`](dashboard/08-bbca-v2-v5-v3.png) | V2, V5, V3 with tooltip 2021-12-03: 147.92 (BBCA) |
+| [`09-bbca-v4-v6-v7-v8.png`](dashboard/09-bbca-v4-v6-v7-v8.png) | V4, V6, V7, V8 (BBCA) |
 | [`10-bbca-v9-footer.png`](dashboard/10-bbca-v9-footer.png) | V9, footer (BBCA) |
 
-The screenshots are stored in `docs/evidence/dashboard/`. **They predate the final V4 and V6 subtitles** (see the subtitle note above) and will be
-replaced after the clean-state run (D3-04).
+The screenshots are stored in `docs/evidence/dashboard/` and were **retaken after the clean-state run** (`docs/evidence/d3-04-clean-state.md`). They
+show the final version of the dashboard: the final V4/V6 subtitles and a fully visible "2026 (partial)" label. The agent re-inspected all 10: no
+account information is visible.
 
 ## Export file
 
